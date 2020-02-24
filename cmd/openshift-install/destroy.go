@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -19,6 +20,7 @@ import (
 	_ "github.com/openshift/installer/pkg/destroy/openstack"
 	_ "github.com/openshift/installer/pkg/destroy/ovirt"
 	_ "github.com/openshift/installer/pkg/destroy/vsphere"
+	metrics "github.com/openshift/installer/pkg/metrics"
 	"github.com/openshift/installer/pkg/terraform"
 )
 
@@ -45,10 +47,18 @@ func newDestroyClusterCmd() *cobra.Command {
 			cleanup := setupFileHook(rootOpts.dir)
 			defer cleanup()
 
+			startTime := float64(time.Now().Unix())
+			initializeMetrics()
+			metrics.AddLabelValue(metrics.ClusterInstallationInvocationJobName, "command", "destroy")
+			metrics.AddLabelValue(metrics.ClusterInstallationInvocationJobName, "target", "cluster")
+
 			err := runDestroyCmd(rootOpts.dir)
 			if err != nil {
+				logError(err, startTime)
 				logrus.Fatal(err)
 			}
+
+			sendPrometheusInvocationData(startTime)
 		},
 	}
 }
@@ -95,10 +105,18 @@ func newDestroyBootstrapCmd() *cobra.Command {
 			cleanup := setupFileHook(rootOpts.dir)
 			defer cleanup()
 
+			startTime := float64(time.Now().Unix())
+			initializeMetrics()
+			metrics.AddLabelValue(metrics.ClusterInstallationInvocationJobName, "command", "destroy")
+			metrics.AddLabelValue(metrics.ClusterInstallationInvocationJobName, "target", "bootstrap")
+
 			err := bootstrap.Destroy(rootOpts.dir)
 			if err != nil {
+				logError(err, startTime)
 				logrus.Fatal(err)
 			}
+
+			sendPrometheusInvocationData(startTime)
 		},
 	}
 }

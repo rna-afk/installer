@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -13,13 +14,15 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"k8s.io/klog"
 
+	metrics "github.com/openshift/installer/pkg/metrics"
 	"github.com/openshift/installer/pkg/terraform/exec/plugins"
 )
 
 var (
 	rootOpts struct {
-		dir      string
-		logLevel string
+		dir         string
+		logLevel    string
+		stopMetrics bool
 	}
 )
 
@@ -74,6 +77,7 @@ func newRootCmd() *cobra.Command {
 	}
 	cmd.PersistentFlags().StringVar(&rootOpts.dir, "dir", ".", "assets directory")
 	cmd.PersistentFlags().StringVar(&rootOpts.logLevel, "log-level", "info", "log level (e.g. \"debug | info | warn | error\")")
+	cmd.PersistentFlags().BoolVarP(&rootOpts.stopMetrics, "stop-metrics", "s", false, "Disables sending debugging information to Red Hat")
 	return cmd
 }
 
@@ -100,4 +104,38 @@ func runRootCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		logrus.Fatal(errors.Wrap(err, "invalid log-level"))
 	}
+}
+
+func initializeMetrics() {
+	metrics.Initialize()
+	if rootOpts.stopMetrics{
+		metrics.StopMetrics()
+	}
+	metrics.AddLabelValue(metrics.ClusterInstallationInvocationJobName, "result", "Success")
+	metrics.AddLabelValue(metrics.ClusterInstallationInvocationJobName, "platform", "")
+	metrics.AddLabelValue(metrics.ClusterInstallationInvocationJobName, "returnCode", "1")
+	metrics.SetValue(metrics.ClusterInstallationInvocationJobName, 1)
+
+}
+
+func logError(err error, startTime float64) {
+	metrics.AddLabelValue(metrics.ClusterInstallationInvocationJobName, "result", err.Error())
+	metrics.AddLabelValue(metrics.ClusterInstallationInvocationJobName, "returnCode", "0")
+	sendPrometheusInvocationData(startTime)
+}
+
+func sendPrometheusInvocationData(startTime float64) {
+	stopTime := float64(time.Now().Unix())
+	duration := stopTime - startTime
+
+	metrics.SetValue(metrics.ClusterInstallationInvocationJobName, duration)
+	metrics.SendDataToPrometheusAggregationGateway(metrics.ClusterInstallationInvocationJobName)
+}
+
+func sendPrometheusDurationData() {
+	metrics.SendDataToPrometheusAggregationGateway(metrics.ClusterInstallationDurationJobName)
+}
+
+func sendPrometheusModificationData() {
+	metrics.SendDataToPrometheusAggregationGateway(metrics.ClusterInstallationModificationJobName)
 }

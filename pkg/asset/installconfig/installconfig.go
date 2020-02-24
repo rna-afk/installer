@@ -14,6 +14,7 @@ import (
 	icazure "github.com/openshift/installer/pkg/asset/installconfig/azure"
 	icgcp "github.com/openshift/installer/pkg/asset/installconfig/gcp"
 	icopenstack "github.com/openshift/installer/pkg/asset/installconfig/openstack"
+	metrics "github.com/openshift/installer/pkg/metrics"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/conversion"
 	"github.com/openshift/installer/pkg/types/defaults"
@@ -139,6 +140,8 @@ func (a *InstallConfig) finish(filename string) error {
 		}
 		return errors.Wrapf(err, "invalid %q file", filename)
 	}
+
+	metrics.AddLabelValue(metrics.ClusterInstallationInvocationJobName, "platform", a.Config.Platform.Name())
 
 	if err := a.platformValidation(); err != nil {
 		return err

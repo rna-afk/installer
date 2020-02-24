@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,6 +34,7 @@ import (
 	assetstore "github.com/openshift/installer/pkg/asset/store"
 	targetassets "github.com/openshift/installer/pkg/asset/targets"
 	destroybootstrap "github.com/openshift/installer/pkg/destroy/bootstrap"
+	metrics "github.com/openshift/installer/pkg/metrics"
 	"github.com/openshift/installer/pkg/types/baremetal"
 	cov1helpers "github.com/openshift/library-go/pkg/config/clusteroperator/v1helpers"
 )
@@ -88,25 +90,38 @@ var (
 			// Long:  "",
 			PostRun: func(_ *cobra.Command, _ []string) {
 				ctx := context.Background()
+				mainTime := float64(time.Now().Unix())
 
 				cleanup := setupFileHook(rootOpts.dir)
 				defer cleanup()
 
 				config, err := clientcmd.BuildConfigFromFlags("", filepath.Join(rootOpts.dir, "auth", "kubeconfig"))
 				if err != nil {
+					logError(err, mainTime)
 					logrus.Fatal(errors.Wrap(err, "loading kubeconfig"))
 				}
+
+				startTime := float64(time.Now().Unix())
 
 				err = waitForBootstrapComplete(ctx, config, rootOpts.dir)
 				if err != nil {
 					if err2 := logClusterOperatorConditions(ctx, config); err2 != nil {
+						logError(err2, mainTime)
 						logrus.Error("Attempted to gather ClusterOperator status after installation failure: ", err2)
 					}
 					if err2 := runGatherBootstrapCmd(rootOpts.dir); err2 != nil {
+						logError(err2, mainTime)
 						logrus.Error("Attempted to gather debug logs after installation failure: ", err2)
 					}
+					logError(err, mainTime)
 					logrus.Fatal("Bootstrap failed to complete: ", err)
 				}
+
+				stopTime := float64(time.Now().Unix())
+				duration := stopTime - startTime
+
+				metrics.AddLabelValue(metrics.ClusterInstallationDurationJobName, "bootstrap",
+					fmt.Sprintf("%.1f", math.Ceil(duration/metrics.BucketSize)))
 
 				if oi, ok := os.LookupEnv("OPENSHIFT_INSTALL_PRESERVE_BOOTSTRAP"); ok && oi != "" {
 					logrus.Warn("OPENSHIFT_INSTALL_PRESERVE_BOOTSTRAP is set, not destroying bootstrap resources. " +
@@ -119,6 +134,7 @@ var (
 					}
 				}
 
+				startTime = float64(time.Now().Unix())
 				err = waitForInstallComplete(ctx, config, rootOpts.dir)
 				if err != nil {
 					if err2 := logClusterOperatorConditions(ctx, config); err2 != nil {
@@ -126,6 +142,15 @@ var (
 					}
 					logrus.Fatal(err)
 				}
+
+				stopTime = float64(time.Now().Unix())
+				duration = stopTime - startTime
+
+				metrics.AddLabelValue(metrics.ClusterInstallationDurationJobName, "provisioning",
+					fmt.Sprintf("%.1f", math.Ceil(duration/metrics.BucketSize)))
+
+				sendPrometheusInvocationData(mainTime)
+				sendPrometheusDurationData()
 			},
 		},
 		assets: targetassets.Cluster,
@@ -185,9 +210,19 @@ func runTargetCmd(targets ...asset.WritableAsset) func(cmd *cobra.Command, args 
 		cleanup := setupFileHook(rootOpts.dir)
 		defer cleanup()
 
+		startTime := float64(time.Now().Unix())
+		initializeMetrics()
+		metrics.AddLabelValue(metrics.ClusterInstallationInvocationJobName, "command", "create")
+		metrics.AddLabelValue(metrics.ClusterInstallationInvocationJobName, "target", cmd.Name())
+
 		err := runner(rootOpts.dir)
 		if err != nil {
+			logError(err, startTime)
 			logrus.Fatal(err)
+		}
+
+		if cmd.Name() != "cluster" {
+			sendPrometheusInvocationData(startTime)
 		}
 	}
 }
