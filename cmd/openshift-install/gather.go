@@ -21,6 +21,8 @@ import (
 	"github.com/openshift/installer/pkg/asset/installconfig"
 	assetstore "github.com/openshift/installer/pkg/asset/store"
 	"github.com/openshift/installer/pkg/gather/ssh"
+	metrics "github.com/openshift/installer/pkg/metrics"
+	"github.com/openshift/installer/pkg/metrics/timer"
 	"github.com/openshift/installer/pkg/terraform"
 	gatheraws "github.com/openshift/installer/pkg/terraform/gather/aws"
 	gatherazure "github.com/openshift/installer/pkg/terraform/gather/azure"
@@ -72,10 +74,18 @@ func newGatherBootstrapCmd() *cobra.Command {
 		Run: func(_ *cobra.Command, _ []string) {
 			cleanup := setupFileHook(rootOpts.dir)
 			defer cleanup()
+
+			metricName := metrics.ClusterInstallationGatherJobName
+			initializeInvocationMetrics(metricName)
+			metrics.AddLabelValue(metricName, "target", "bootstrap")
+
+			timer.StartTimer(timer.TotalTimeElapsed)
 			err := runGatherBootstrapCmd(rootOpts.dir)
 			if err != nil {
+				logError("GatherFailed", metricName)
 				logrus.Fatal(err)
 			}
+			sendPrometheusInvocationData(metricName)
 		},
 	}
 	cmd.PersistentFlags().StringVar(&gatherBootstrapOpts.bootstrap, "bootstrap", "", "Hostname or IP of the bootstrap host")
@@ -103,6 +113,7 @@ func runGatherBootstrapCmd(directory string) error {
 	if err := assetStore.Fetch(config); err != nil {
 		return errors.Wrapf(err, "failed to fetch %s", config.Name())
 	}
+	metrics.AddLabelValue(metrics.CurrentInvocationContext, "platform", config.Config.Platform.Name())
 
 	tfstate, err := terraform.ReadState(tfStateFilePath)
 	if err != nil {

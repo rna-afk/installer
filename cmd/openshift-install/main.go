@@ -13,6 +13,8 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"k8s.io/klog"
 
+	metrics "github.com/openshift/installer/pkg/metrics"
+	timer "github.com/openshift/installer/pkg/metrics/timer"
 	"github.com/openshift/installer/pkg/terraform/exec/plugins"
 )
 
@@ -100,4 +102,24 @@ func runRootCmd(cmd *cobra.Command, args []string) {
 	if err != nil {
 		logrus.Fatal(errors.Wrap(err, "invalid log-level"))
 	}
+}
+
+func initializeInvocationMetrics(metricName string) {
+	metrics.AddLabelValue(metricName, "result", "Success")
+	metrics.AddLabelValue(metricName, "platform", "")
+	metrics.AddLabelValue(metricName, "returnCode", "1")
+	metrics.CurrentInvocationContext = metricName
+}
+
+func logError(err string, metricName string) {
+	metrics.AddLabelValue(metricName, "result", err)
+	metrics.AddLabelValue(metricName, "returnCode", "0")
+
+	sendPrometheusInvocationData(metricName)
+}
+
+func sendPrometheusInvocationData(metricName string) {
+	duration := timer.StopTimer(timer.TotalTimeElapsed)
+	metrics.SetValue(metricName, duration.Minutes())
+	metrics.PushAll()
 }

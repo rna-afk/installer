@@ -32,6 +32,7 @@ import (
 	assetstore "github.com/openshift/installer/pkg/asset/store"
 	targetassets "github.com/openshift/installer/pkg/asset/targets"
 	destroybootstrap "github.com/openshift/installer/pkg/destroy/bootstrap"
+	metrics "github.com/openshift/installer/pkg/metrics"
 	timer "github.com/openshift/installer/pkg/metrics/timer"
 	"github.com/openshift/installer/pkg/types/baremetal"
 	cov1helpers "github.com/openshift/library-go/pkg/config/clusteroperator/v1helpers"
@@ -89,27 +90,41 @@ var (
 			PostRun: func(_ *cobra.Command, _ []string) {
 				ctx := context.Background()
 
+				metricName := metrics.CurrentInvocationContext
+
 				cleanup := setupFileHook(rootOpts.dir)
 				defer cleanup()
 
 				config, err := clientcmd.BuildConfigFromFlags("", filepath.Join(rootOpts.dir, "auth", "kubeconfig"))
 				if err != nil {
+					updateDurationMetricsWithError()
+					logError("ProvisioningFailed", metricName)
 					logrus.Fatal(errors.Wrap(err, "loading kubeconfig"))
 				}
 
 				timer.StartTimer("Bootstrap Complete")
 				err = waitForBootstrapComplete(ctx, config, rootOpts.dir)
+				errMsg := ""
 				if err != nil {
 					if err2 := logClusterOperatorConditions(ctx, config); err2 != nil {
+						updateDurationMetricsWithError()
+						errMsg = "OperatorDegraded"
 						logrus.Error("Attempted to gather ClusterOperator status after installation failure: ", err2)
 					}
 					if err2 := runGatherBootstrapCmd(rootOpts.dir); err2 != nil {
+						updateDurationMetricsWithError()
+						errMsg = "BootstrapFailed"
 						logrus.Error("Attempted to gather debug logs after installation failure: ", err2)
 					}
+					updateDurationMetricsWithError()
+					logError(errMsg, metricName)
 					logrus.Fatal("Bootstrap failed to complete: ", err)
 				}
-				timer.StopTimer("Bootstrap Complete")
+				durationBootstrapComplete := timer.StopTimer("Bootstrap Complete")
 				timer.StartTimer("Bootstrap Destroy")
+
+				// metrics.AddLabelValue(metrics.ClusterInstallationDurationBootstrapJobName, "bootstrap",
+				// 	fmt.Sprintf("%.1f", math.Ceil(duration/metrics.BucketSize)))
 
 				if oi, ok := os.LookupEnv("OPENSHIFT_INSTALL_PRESERVE_BOOTSTRAP"); ok && oi != "" {
 					logrus.Warn("OPENSHIFT_INSTALL_PRESERVE_BOOTSTRAP is set, not destroying bootstrap resources. " +
@@ -118,20 +133,27 @@ var (
 					logrus.Info("Destroying the bootstrap resources...")
 					err = destroybootstrap.Destroy(rootOpts.dir)
 					if err != nil {
+						updateDurationMetricsWithError()
+						logError("BootstrapFailed", metricName)
 						logrus.Fatal(err)
 					}
 				}
-				timer.StopTimer("Bootstrap Destroy")
+				durationBootstrapComplete += timer.StopTimer("Bootstrap Destroy")
+				metrics.SetValue(metrics.ClusterInstallationDurationBootstrapJobName, durationBootstrapComplete.Minutes())
 
 				err = waitForInstallComplete(ctx, config, rootOpts.dir)
 				if err != nil {
+					logError("ProvisioningFailed", metricName)
 					if err2 := logClusterOperatorConditions(ctx, config); err2 != nil {
 						logrus.Error("Attempted to gather ClusterOperator status after installation failure: ", err2)
 					}
 					logrus.Fatal(err)
 				}
-				timer.StopTimer(timer.TotalTimeElapsed)
+				duration := timer.StopTimer(timer.TotalTimeElapsed)
 				timer.LogSummary()
+
+				metrics.SetValue(metrics.ClusterInstallationDurationProvisioningJobName, duration.Minutes())
+				sendPrometheusInvocationData(metricName)
 			},
 		},
 		assets: targetassets.Cluster,
@@ -183,7 +205,14 @@ func runTargetCmd(targets ...asset.WritableAsset) func(cmd *cobra.Command, args 
 			if err != nil {
 				return err
 			}
+
+			installConfig := &installconfig.InstallConfig{}
+			if err := assetStore.Fetch(installConfig); err == nil {
+				metrics.Platform = installConfig.Config.Platform.Name()
+			}
+
 		}
+
 		return nil
 	}
 
@@ -192,11 +221,47 @@ func runTargetCmd(targets ...asset.WritableAsset) func(cmd *cobra.Command, args 
 
 		cleanup := setupFileHook(rootOpts.dir)
 		defer cleanup()
+		metrics.Initialize()
+		metricName := metrics.CreateCommandMetricName[cmd.Name()]
+		metrics.CurrentInvocationContext = metricName
+		initializeInvocationMetrics(metricName)
 
 		err := runner(rootOpts.dir)
 		if err != nil {
+			logError("AssetStoreError", metricName)
 			logrus.Fatal(err)
 		}
+
+		if cmd.Name() != "cluster" {
+			sendPrometheusInvocationData(metricName)
+		} else {
+			listOfDurationMetrics := []string{
+				metrics.ClusterInstallationDurationAPIJobName,
+				metrics.ClusterInstallationDurationBootstrapJobName,
+				metrics.ClusterInstallationDurationInfrastructureJobName,
+				metrics.ClusterInstallationDurationOperatorsJobName,
+				metrics.ClusterInstallationDurationProvisioningJobName,
+			}
+
+			for _, item := range listOfDurationMetrics {
+				metrics.AddLabelValue(item, "command", "create")
+				metrics.AddLabelValue(item, "result", "success")
+			}
+		}
+	}
+}
+
+func updateDurationMetricsWithError() {
+	listOfDurationMetrics := []string{
+		metrics.ClusterInstallationDurationAPIJobName,
+		metrics.ClusterInstallationDurationBootstrapJobName,
+		metrics.ClusterInstallationDurationInfrastructureJobName,
+		metrics.ClusterInstallationDurationOperatorsJobName,
+		metrics.ClusterInstallationDurationProvisioningJobName,
+	}
+
+	for _, item := range listOfDurationMetrics {
+		metrics.AddLabelValue(item, "result", "error")
 	}
 }
 
@@ -268,11 +333,11 @@ func waitForBootstrapComplete(ctx context.Context, config *rest.Config, director
 	silenceRemaining := logDownsample
 	previousErrorSuffix := ""
 	timer.StartTimer("API")
+	var duration time.Duration
 	wait.Until(func() {
 		version, err := discovery.ServerVersion()
 		if err == nil {
 			logrus.Infof("API %s up", version)
-			timer.StopTimer("API")
 			cancel()
 		} else {
 			silenceRemaining--
@@ -290,8 +355,13 @@ func waitForBootstrapComplete(ctx context.Context, config *rest.Config, director
 	}, 2*time.Second, apiContext.Done())
 	err = apiContext.Err()
 	if err != nil && err != context.Canceled {
+		metrics.AddLabelValue(metrics.CurrentInvocationContext, "result", "APIFailed")
+		metrics.AddLabelValue(metrics.CurrentInvocationContext, "returnCode", "0")
 		return errors.Wrap(err, "waiting for Kubernetes API")
 	}
+	duration = timer.StopTimer("API")
+	metrics.SetValue(metrics.ClusterInstallationDurationAPIJobName, duration.Minutes())
+	logrus.Infof(duration.Minutes())
 
 	return waitForBootstrapConfigMap(ctx, client)
 }
@@ -375,7 +445,8 @@ func waitForInitializedCluster(ctx context.Context, config *rest.Config) error {
 					return false, nil
 				}
 				if cov1helpers.IsStatusConditionTrue(cv.Status.Conditions, configv1.OperatorAvailable) {
-					timer.StopTimer("Cluster Operators")
+					duration := timer.StopTimer("Cluster Operators")
+					metrics.SetValue(metrics.ClusterInstallationDurationOperatorsJobName, duration.Minutes())
 					return true, nil
 				}
 				if cov1helpers.IsStatusConditionTrue(cv.Status.Conditions, failing) {
@@ -395,6 +466,9 @@ func waitForInitializedCluster(ctx context.Context, config *rest.Config) error {
 		logrus.Debug("Cluster is initialized")
 		return nil
 	}
+
+	metrics.AddLabelValue(metricName, "result", "OperatorDegraded")
+	metrics.AddLabelValue(metricName, "returnCode", "0")
 
 	if lastError != "" {
 		if err == wait.ErrWaitTimeout {
@@ -484,10 +558,12 @@ func logComplete(directory, consoleURL string) error {
 }
 
 func waitForInstallComplete(ctx context.Context, config *rest.Config, directory string) error {
+	startTime := time.Now().Unix()
 	if err := waitForInitializedCluster(ctx, config); err != nil {
 		return err
 	}
-
+	metrics.SetValue(metrics.ClusterInstallationDurationOperatorsJobName, float64((time.Now().Unix()-startTime)/3600))
+	metrics.Push(metrics.ClusterInstallationDurationOperatorsJobName)
 	consoleURL, err := waitForConsole(ctx, config, rootOpts.dir)
 	if err != nil {
 		return err
