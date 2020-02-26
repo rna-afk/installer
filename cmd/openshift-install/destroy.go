@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/openshift/installer/pkg/asset/installconfig"
 	assetstore "github.com/openshift/installer/pkg/asset/store"
 	"github.com/openshift/installer/pkg/destroy"
 	_ "github.com/openshift/installer/pkg/destroy/aws"
@@ -19,6 +20,7 @@ import (
 	_ "github.com/openshift/installer/pkg/destroy/openstack"
 	_ "github.com/openshift/installer/pkg/destroy/ovirt"
 	_ "github.com/openshift/installer/pkg/destroy/vsphere"
+	"github.com/openshift/installer/pkg/metrics"
 	timer "github.com/openshift/installer/pkg/metrics/timer"
 	"github.com/openshift/installer/pkg/terraform"
 )
@@ -44,12 +46,19 @@ func newDestroyClusterCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(0),
 		Run: func(_ *cobra.Command, _ []string) {
 			cleanup := setupFileHook(rootOpts.dir)
+			metrics.Initialize()
 			defer cleanup()
+
+			metricName := metrics.ClusterInstallationDestroyJobName
+			metrics.CurrentInvocationContext = metricName
+			initializeInvocationMetrics(metricName)
 
 			err := runDestroyCmd(rootOpts.dir)
 			if err != nil {
+				logError("DeletionFailed", metricName)
 				logrus.Fatal(err)
 			}
+			sendPrometheusInvocationData(metricName)
 		},
 	}
 }
@@ -68,6 +77,13 @@ func runDestroyCmd(directory string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create asset store")
 	}
+
+	config := installconfig.InstallConfig{}
+	configErr := store.Fetch(&config, clusterTarget.assets...)
+	if configErr == nil {
+		metrics.AddLabelValue(metrics.CurrentInvocationContext, "platform", config.Config.Platform.Name())
+	}
+
 	for _, asset := range clusterTarget.assets {
 		if err := store.Destroy(asset); err != nil {
 			return errors.Wrapf(err, "failed to destroy asset %q", asset.Name())
@@ -98,6 +114,10 @@ func newDestroyBootstrapCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			cleanup := setupFileHook(rootOpts.dir)
 			defer cleanup()
+			metrics.Initialize()
+
+			metricName := metrics.ClusterInstallationDestroyJobName
+			initializeInvocationMetrics(metricName)
 
 			timer.StartTimer(timer.TotalTimeElapsed)
 			err := bootstrap.Destroy(rootOpts.dir)
@@ -106,6 +126,7 @@ func newDestroyBootstrapCmd() *cobra.Command {
 			}
 			timer.StopTimer(timer.TotalTimeElapsed)
 			timer.LogSummary()
+			sendPrometheusInvocationData(metricName)
 		},
 	}
 }

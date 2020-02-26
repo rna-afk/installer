@@ -33,7 +33,7 @@ require (
 	github.com/go-playground/validator/v10 v10.2.0
 	github.com/golang/mock v1.3.1
 	github.com/google/go-cmp v0.3.2-0.20191028172631-481baca67f93 // indirect
-	github.com/google/martian v2.1.1-0.20190517191504-25dcb96d9e51+incompatible // indirect
+	github.com/google/martian v2.1.1-0.20190517191504-25dcb96d9e51+incompatible
 	github.com/google/uuid v1.1.1
 	github.com/gophercloud/gophercloud v0.8.0
 	github.com/gophercloud/utils v0.0.0-20191212191830-4533a07bd492
@@ -81,8 +81,9 @@ require (
 	github.com/pierrec/lz4 v2.3.0+incompatible // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.10.1
-	github.com/prometheus/client_golang v1.2.1 // indirect
+	github.com/prometheus/client_golang v1.2.1
 	github.com/prometheus/client_model v0.0.0-20191202183732-d1d2010b5bee // indirect
+	github.com/prometheus/common v0.7.0
 	github.com/prometheus/procfs v0.0.8 // indirect
 	github.com/satori/uuid v1.2.0 // indirect
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
@@ -111,11 +112,12 @@ require (
 	golang.org/x/oauth2 v0.0.0-20191202225959-858c2ad4c8b6
 	golang.org/x/sys v0.0.0-20191206220618-eeba5f6aabab
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
-	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 // indirect
+	golang.org/x/tools v0.0.0-20200318150045-ba25ddc85566 // indirect
 	google.golang.org/api v0.14.0
 	gopkg.in/AlecAivazis/survey.v1 v1.8.9-0.20200217094205-6773bdf39b7f
 	gopkg.in/ini.v1 v1.51.0
 	gopkg.in/yaml.v2 v2.2.8
+	honnef.co/go/tools v0.0.1-2019.2.3
 	k8s.io/api v0.17.2
 	k8s.io/apimachinery v0.17.3
 	k8s.io/client-go v12.0.0+incompatible

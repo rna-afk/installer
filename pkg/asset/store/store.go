@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/openshift/installer/pkg/asset"
+	"github.com/openshift/installer/pkg/metrics"
 )
 
 const (
@@ -248,6 +249,7 @@ func (s *storeImpl) load(a asset.Asset, indent string) (*assetState, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		if state.anyParentsDirty || state.source == onDiskSource {
 			anyParentsDirty = true
 		}
@@ -311,6 +313,10 @@ func (s *storeImpl) load(a asset.Asset, indent string) (*assetState, error) {
 	// The asset is sourced from on disk.
 	case foundOnDisk && !onDiskMatchesStateFile:
 		logrus.Debugf("%sUsing %s loaded from target directory", indent, a.Name())
+		metricName := metrics.FileCategories[a.Name()]
+		if metricName != "" {
+			metrics.AddLabelValue(metricName, "result", "success")
+		}
 		assetToStore = onDiskAsset
 		source = onDiskSource
 	// The asset is in the state file. The asset is sourced from state file.
