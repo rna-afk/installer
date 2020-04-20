@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"google.golang.org/api/cloudresourcemanager/v1"
 	compute "google.golang.org/api/compute/v1"
 	dns "google.golang.org/api/dns/v1"
 	"google.golang.org/api/option"
@@ -148,6 +149,39 @@ func (c *Client) getDNSService(ctx context.Context) (*dns.Service, error) {
 	svc, err := dns.NewService(ctx, option.WithCredentials(c.ssn.Credentials))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create dns service")
+	}
+	return svc, nil
+}
+
+//GetListOfProjects gets the list of project names and ids associated with the current user.
+func (c *Client) GetListOfProjects(ctx context.Context) ([]string, []string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
+
+	svc, err := c.getCloudResourceService(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req := svc.Projects.List()
+	var names []string
+	var ids []string
+	if err := req.Pages(ctx, func(page *cloudresourcemanager.ListProjectsResponse) error {
+		for _, project := range page.Projects {
+			names = append(names, project.Name)
+			ids = append(ids, project.ProjectId)
+		}
+		return nil
+	}); err != nil {
+		return nil, nil, err
+	}
+	return names, ids, nil
+}
+
+func (c *Client) getCloudResourceService(ctx context.Context) (*cloudresourcemanager.Service, error) {
+	svc, err := cloudresourcemanager.NewService(ctx, option.WithCredentials(c.ssn.Credentials))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create cloud resource service")
 	}
 	return svc, nil
 }

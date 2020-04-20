@@ -38,16 +38,48 @@ func selectProject(ctx context.Context) (string, error) {
 	}
 	defaultProject := ssn.Credentials.ProjectID
 
+	client := &Client{
+		ssn: ssn,
+	}
+
+	var listOfCombo []string
+
+	listOfNames, listOfIds, err := client.GetListOfProjects(ctx)
+	if err != nil {
+		return "", err
+	}
+	index := 0
+	for i, v := range listOfIds {
+		if v == defaultProject {
+			index = i
+		}
+		listOfCombo = append(listOfCombo, listOfNames[i]+" ("+v+")")
+	}
+
+	defaultValue := listOfNames[index] + " (" + defaultProject + ")"
+
 	var selectedProject string
 	err = survey.Ask([]*survey.Question{
 		{
-			Prompt: &survey.Input{
-				Message: "Project ID",
-				Help:    "The project id where the cluster will be provisioned. The default is taken from the provided service account.",
-				Default: defaultProject,
+			Prompt: &survey.Select{
+				Message: "Project",
+				Help:    "The GCP project to be used for installation.",
+				Default: fmt.Sprintf("%s", defaultValue),
+				Options: listOfCombo,
 			},
+			Validate: survey.ComposeValidators(survey.Required, func(ans interface{}) error {
+				choice := strings.SplitN(ans.(string), " (", 2)[0]
+				for _, v := range listOfNames {
+					if v == choice {
+						return nil
+					}
+				}
+				return errors.Errorf("invalid project %q", choice)
+			}),
 		},
 	}, &selectedProject)
+	selectedProject = strings.SplitN(selectedProject, " (", 2)[1]
+	selectedProject = selectedProject[:len(selectedProject)-1]
 	return selectedProject, nil
 }
 
