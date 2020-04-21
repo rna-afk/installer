@@ -21,6 +21,7 @@ type API interface {
 	GetPublicDomains(ctx context.Context, project string) ([]string, error)
 	GetPublicDNSZone(ctx context.Context, baseDomain, project string) (*dns.ManagedZone, error)
 	GetSubnetworks(ctx context.Context, network, project, region string) ([]*compute.Subnetwork, error)
+	GetListOfProjects(ctx context.Context) (map[string]string, error)
 }
 
 // Client makes calls to the GCP API.
@@ -153,29 +154,27 @@ func (c *Client) getDNSService(ctx context.Context) (*dns.Service, error) {
 	return svc, nil
 }
 
-//GetListOfProjects gets the list of project names and ids associated with the current user.
-func (c *Client) GetListOfProjects(ctx context.Context) ([]string, []string, error) {
+// GetListOfProjects gets the list of project names and ids associated with the current user.
+func (c *Client) GetListOfProjects(ctx context.Context) (map[string]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 
 	svc, err := c.getCloudResourceService(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	req := svc.Projects.List()
-	var names []string
-	var ids []string
+	projectNameIds := make(map[string]string)
 	if err := req.Pages(ctx, func(page *cloudresourcemanager.ListProjectsResponse) error {
 		for _, project := range page.Projects {
-			names = append(names, project.Name)
-			ids = append(ids, project.ProjectId)
+			projectNameIds[project.ProjectId] = project.Name
 		}
 		return nil
 	}); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return names, ids, nil
+	return projectNameIds, nil
 }
 
 func (c *Client) getCloudResourceService(ctx context.Context) (*cloudresourcemanager.Service, error) {
