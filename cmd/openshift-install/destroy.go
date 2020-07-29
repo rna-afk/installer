@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/openshift/installer/pkg/asset/installconfig"
 	assetstore "github.com/openshift/installer/pkg/asset/store"
 	"github.com/openshift/installer/pkg/destroy"
 	_ "github.com/openshift/installer/pkg/destroy/aws"
@@ -19,6 +20,7 @@ import (
 	_ "github.com/openshift/installer/pkg/destroy/openstack"
 	_ "github.com/openshift/installer/pkg/destroy/ovirt"
 	_ "github.com/openshift/installer/pkg/destroy/vsphere"
+	"github.com/openshift/installer/pkg/metrics/gatherer"
 	timer "github.com/openshift/installer/pkg/metrics/timer"
 	"github.com/openshift/installer/pkg/terraform"
 )
@@ -45,11 +47,13 @@ func newDestroyClusterCmd() *cobra.Command {
 		Run: func(_ *cobra.Command, _ []string) {
 			cleanup := setupFileHook(rootOpts.dir)
 			defer cleanup()
-
+			gatherer.InitializeInvocationMetrics(gatherer.DestroyMetricName)
 			err := runDestroyCmd(rootOpts.dir)
 			if err != nil {
+				gatherer.LogError("failed", gatherer.CurrentInvocationContext)
 				logrus.Fatal(err)
 			}
+			gatherer.SendPrometheusInvocationData(gatherer.CurrentInvocationContext)
 		},
 	}
 }
@@ -67,6 +71,11 @@ func runDestroyCmd(directory string) error {
 	store, err := assetstore.NewStore(directory)
 	if err != nil {
 		return errors.Wrap(err, "failed to create asset store")
+	}
+
+	asset, configErr := store.Load(&installconfig.InstallConfig{})
+	if configErr == nil && asset != nil {
+		gatherer.AddLabelValue(gatherer.CurrentInvocationContext, "platform", asset.(*installconfig.InstallConfig).Config.Platform.Name())
 	}
 	for _, asset := range clusterTarget.assets {
 		if err := store.Destroy(asset); err != nil {
@@ -86,7 +95,6 @@ func runDestroyCmd(directory string) error {
 	}
 	timer.StopTimer(timer.TotalTimeElapsed)
 	timer.LogSummary()
-
 	return nil
 }
 
@@ -98,14 +106,17 @@ func newDestroyBootstrapCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			cleanup := setupFileHook(rootOpts.dir)
 			defer cleanup()
+			gatherer.InitializeInvocationMetrics(gatherer.DestroyMetricName)
 
 			timer.StartTimer(timer.TotalTimeElapsed)
 			err := bootstrap.Destroy(rootOpts.dir)
 			if err != nil {
+				gatherer.LogError("failed", gatherer.CurrentInvocationContext)
 				logrus.Fatal(err)
 			}
 			timer.StopTimer(timer.TotalTimeElapsed)
 			timer.LogSummary()
+			gatherer.SendPrometheusInvocationData(gatherer.CurrentInvocationContext)
 		},
 	}
 }

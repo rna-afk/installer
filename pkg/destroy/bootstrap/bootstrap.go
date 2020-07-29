@@ -10,6 +10,7 @@ import (
 
 	"github.com/openshift/installer/pkg/asset/cluster"
 	osp "github.com/openshift/installer/pkg/destroy/openstack"
+	"github.com/openshift/installer/pkg/metrics/gatherer"
 	"github.com/openshift/installer/pkg/terraform"
 	"github.com/openshift/installer/pkg/types/gcp"
 	"github.com/openshift/installer/pkg/types/libvirt"
@@ -80,6 +81,8 @@ func Destroy(dir string) (err error) {
 			return errors.Wrapf(err, "Failed to delete glance image %s", imageName)
 		}
 	}
+
+	gatherer.AddLabelValue(gatherer.CurrentInvocationContext, "platform", platform)
 
 	extraArgs = append(extraArgs, "-target=module.bootstrap")
 	err = terraform.Destroy(tempDir, platform, extraArgs...)

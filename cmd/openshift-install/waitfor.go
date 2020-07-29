@@ -4,11 +4,15 @@ import (
 	"context"
 	"path/filepath"
 
-	timer "github.com/openshift/installer/pkg/metrics/timer"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/openshift/installer/pkg/asset/installconfig"
+	assetstore "github.com/openshift/installer/pkg/asset/store"
+	"github.com/openshift/installer/pkg/metrics/gatherer"
+	timer "github.com/openshift/installer/pkg/metrics/timer"
 )
 
 func newWaitForCmd() *cobra.Command {
@@ -37,6 +41,7 @@ func newWaitForBootstrapCompleteCmd() *cobra.Command {
 		Run: func(_ *cobra.Command, _ []string) {
 			timer.StartTimer(timer.TotalTimeElapsed)
 			ctx := context.Background()
+			gatherer.InitializeInvocationMetrics(gatherer.WaitforMetricName)
 
 			cleanup := setupFileHook(rootOpts.dir)
 			defer cleanup()
@@ -56,6 +61,11 @@ func newWaitForBootstrapCompleteCmd() *cobra.Command {
 				logrus.Info("openshift-install gather bootstrap --help")
 				logrus.Fatal(err)
 			}
+			if assetStore, err := assetstore.NewStore(rootOpts.dir); err == nil {
+				if asset, err := assetStore.Load(&installconfig.InstallConfig{}); err == nil && asset != nil {
+					gatherer.AddLabelValue(gatherer.CurrentInvocationContext, "platform", asset.(*installconfig.InstallConfig).Config.Platform.Name())
+				}
+			}
 
 			logrus.Info("It is now safe to remove the bootstrap resources")
 			timer.StopTimer("Bootstrap Complete")
@@ -73,6 +83,7 @@ func newWaitForInstallCompleteCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			timer.StartTimer(timer.TotalTimeElapsed)
 			ctx := context.Background()
+			gatherer.InitializeInvocationMetrics(gatherer.WaitforMetricName)
 
 			cleanup := setupFileHook(rootOpts.dir)
 			defer cleanup()
@@ -90,6 +101,12 @@ func newWaitForInstallCompleteCmd() *cobra.Command {
 
 				logrus.Fatal(err)
 			}
+			if assetStore, err := assetstore.NewStore(rootOpts.dir); err == nil {
+				if asset, err := assetStore.Load(&installconfig.InstallConfig{}); err == nil && asset != nil {
+					gatherer.AddLabelValue(gatherer.CurrentInvocationContext, "platform", asset.(*installconfig.InstallConfig).Config.Platform.Name())
+				}
+			}
+
 			timer.StopTimer(timer.TotalTimeElapsed)
 			timer.LogSummary()
 		},

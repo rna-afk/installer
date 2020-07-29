@@ -12,7 +12,7 @@ import (
 func InitializeInvocationMetrics(metricName string) {
 	AddLabelValue(metricName, "result", "Success")
 	AddLabelValue(metricName, "returnCode", "1")
-	AddLabelValue(CurrentInvocationContext, "os", runtime.GOOS)
+	AddLabelValue(metricName, "os", runtime.GOOS)
 	CurrentInvocationContext = metricName
 }
 
