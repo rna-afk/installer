@@ -4,6 +4,7 @@ package vsphere
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -12,10 +13,13 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/vapi/rest"
+	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25"
+	"github.com/vmware/govmomi/vim25/mo"
 	"gopkg.in/AlecAivazis/survey.v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	"github.com/openshift/installer/pkg/ipnet"
 	"github.com/openshift/installer/pkg/types/vsphere"
 	vspheretypes "github.com/openshift/installer/pkg/types/vsphere"
 	"github.com/openshift/installer/pkg/validate"
@@ -73,7 +77,7 @@ func Platform() (*vsphere.Platform, error) {
 		return nil, err
 	}
 
-	apiVIP, ingressVIP, err := getVIPs()
+	apiVIP, ingressVIP, err := getVIPs(vCenter)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get VIPs")
 	}
@@ -344,9 +348,10 @@ func getNetwork(ctx context.Context, path string, finder *find.Finder, client *v
 	return selectednetwork, nil
 }
 
-func getVIPs() (string, string, error) {
+func getVIPs(vCenter *vCenterClient) (string, string, error) {
+	networkCIDR, _ := getNetworkCIDR(vCenter)
+	fmt.Println(networkCIDR)
 	var apiVIP, ingressVIP string
-
 	if err := survey.Ask([]*survey.Question{
 		{
 			Prompt: &survey.Input{
@@ -386,4 +391,25 @@ func getVIPs() (string, string, error) {
 // https://godoc.org/github.com/vmware/govmomi/find
 func formatPath(rootObject string) string {
 	return fmt.Sprintf("%s/...", rootObject)
+}
+
+func getNetworkCIDR(vCenter *vCenterClient) (ipnet.IPNet, error) {
+	ctx := context.TODO()
+	manager := view.NewManager(vCenter.Client)
+	v, err := manager.CreateContainerView(ctx, vCenter.Client.ServiceContent.RootFolder, []string{"HostSystem"}, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer v.Destroy(ctx)
+
+	var hostSystem []mo.HostSystem
+	err = v.Retrieve(ctx, []string{"HostSystem"}, nil, &hostSystem)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, host := range hostSystem {
+		fmt.Println(host.Config.Network.RouteTableInfo.IpRoute)
+	}
+	return ipnet.IPNet{}, nil
 }
