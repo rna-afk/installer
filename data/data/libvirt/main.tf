@@ -27,6 +27,7 @@ module "bootstrap" {
   network_id       = libvirt_network.net.id
   pool             = libvirt_pool.storage_pool.name
   bootstrap_memory = var.libvirt_bootstrap_memory
+  count            = var.bootstrap_count
 }
 
 resource "libvirt_volume" "master" {

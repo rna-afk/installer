@@ -35,6 +35,7 @@ module "bootstrap" {
   subnet           = module.network.master_subnet
   zone             = var.gcp_master_availability_zones[0]
   region           = var.gcp_region
+  count            = var.bootstrap_count
 
   root_volume_size         = var.gcp_master_root_volume_size
   root_volume_type         = var.gcp_master_root_volume_type

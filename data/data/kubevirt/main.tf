@@ -40,4 +40,5 @@ module "bootstrap" {
   pv_access_mode = var.kubevirt_pv_access_mode
   labels         = var.kubevirt_labels
   pvc_name       = module.datavolume.pvc_name
+  count          = var.bootstrap_count
 }

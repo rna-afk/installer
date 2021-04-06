@@ -96,6 +96,7 @@ module "bootstrap" {
 
   cluster_id = var.cluster_id
   tags       = [vsphere_tag.tag.id]
+  count      = var.bootstrap_count
 }
 
 module "master" {

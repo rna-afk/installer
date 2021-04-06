@@ -25,6 +25,7 @@ module "bootstrap" {
   cluster_id                           = var.cluster_id
   openstack_base_image_name            = var.openstack_base_image_name
   openstack_base_image_local_file_path = var.openstack_base_image_local_file_path
+  count                                = var.bootstrap_count
 }
 
 module "masters" {

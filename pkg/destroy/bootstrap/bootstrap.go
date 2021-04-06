@@ -61,13 +61,6 @@ func Destroy(dir string) (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed disabling bootstrap load balancing")
 		}
-
-		// Then destory the bootstrap instance and instance group so destroy runs cleanly.
-		// First remove the bootstrap from LB target and its instance so that bootstrap module is cleanly destroyed.
-		_, err = terraform.Apply(tempDir, platform, append(extraArgs, "-var=gcp_bootstrap_enabled=false")...)
-		if err != nil {
-			return errors.Wrap(err, "failed disabling bootstrap")
-		}
 	case libvirt.Name:
 		// First remove the bootstrap node from DNS
 		_, err = terraform.Apply(tempDir, platform, append(extraArgs, "-var=bootstrap_dns=false")...)
@@ -85,10 +78,9 @@ func Destroy(dir string) (err error) {
 		extraArgs = append(extraArgs, "-target=module.template.ovirt_image_transfer.releaseimage")
 	}
 
-	extraArgs = append(extraArgs, "-target=module.bootstrap")
-	err = terraform.Destroy(tempDir, platform, extraArgs...)
+	_, err = terraform.Apply(tempDir, platform, append(extraArgs, "-var=bootstrap_count=0")...)
 	if err != nil {
-		return errors.Wrap(err, "Terraform destroy")
+		return errors.Wrap(err, "failed disabling bootstrap")
 	}
 
 	tempStateFilePath := filepath.Join(dir, terraform.StateFileName+".new")

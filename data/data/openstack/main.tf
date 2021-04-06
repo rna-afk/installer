@@ -49,6 +49,7 @@ module "bootstrap" {
   root_volume_type        = var.openstack_master_root_volume_type
   zone                    = var.openstack_master_availability_zones[0]
   additional_network_ids  = var.openstack_additional_network_ids
+  count                   = var.bootstrap_count
 }
 
 module "masters" {

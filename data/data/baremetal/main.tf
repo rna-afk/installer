@@ -21,6 +21,7 @@ module "bootstrap" {
   image      = var.bootstrap_os_image
   ignition   = var.ignition_bootstrap
   bridges    = var.bridges
+  count      = var.bootstrap_count
 }
 
 module "masters" {

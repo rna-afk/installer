@@ -41,6 +41,7 @@ module "bootstrap" {
   volume_kms_key_id        = var.aws_master_root_volume_kms_key_id
   publish_strategy         = var.aws_publish_strategy
   iam_role_name            = var.aws_master_iam_role_name
+  count                    = var.bootstrap_count
 
   tags = local.tags
 }

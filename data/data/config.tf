@@ -20,6 +20,18 @@ EOF
 
 }
 
+variable "bootstrap_count" {
+  type = string
+
+  default = "1"
+
+  description = <<EOF
+The number of bootstrap nodes to be created.
+This applies only to cloud platforms.
+EOF
+
+}
+
 variable "master_count" {
   type = string
 

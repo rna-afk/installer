@@ -44,6 +44,7 @@ module "bootstrap" {
   nsg_name               = module.vnet.cluster_nsg_name
   private                = module.vnet.private
   outbound_udr           = var.azure_outbound_user_defined_routing
+  count                  = var.bootstrap_count
 
   use_ipv4 = var.use_ipv4
   use_ipv6 = var.use_ipv6
