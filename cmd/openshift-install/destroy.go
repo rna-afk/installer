@@ -26,6 +26,7 @@ import (
 	_ "github.com/openshift/installer/pkg/destroy/ovirt"
 	_ "github.com/openshift/installer/pkg/destroy/powervs"
 	_ "github.com/openshift/installer/pkg/destroy/vsphere"
+	"github.com/openshift/installer/pkg/metrics/gatherer"
 )
 
 func newDestroyCmd() *cobra.Command {
@@ -50,12 +51,15 @@ func newDestroyClusterCmd() *cobra.Command {
 		Run: func(_ *cobra.Command, _ []string) {
 			cleanup := setupFileHook(rootOpts.dir)
 			defer cleanup()
+			gatherer.InitializeInvocationMetrics(gatherer.DestroyMetricName)
 
 			err := runDestroyCmd(rootOpts.dir, os.Getenv("OPENSHIFT_INSTALL_REPORT_QUOTA_FOOTPRINT") == "true")
 			if err != nil {
+				gatherer.LogError("failed", gatherer.CurrentInvocationContext)
 				logrus.Fatal(err)
 			}
 			logrus.Infof("Uninstallation complete!")
+			gatherer.SendPrometheusInvocationData(gatherer.CurrentInvocationContext)
 		},
 	}
 }
@@ -122,14 +126,17 @@ func newDestroyBootstrapCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			cleanup := setupFileHook(rootOpts.dir)
 			defer cleanup()
+			gatherer.InitializeInvocationMetrics(gatherer.DestroyMetricName)
 
 			timer.StartTimer(timer.TotalTimeElapsed)
 			err := bootstrap.Destroy(rootOpts.dir)
 			if err != nil {
+				gatherer.LogError("failed", gatherer.CurrentInvocationContext)
 				logrus.Fatal(err)
 			}
 			timer.StopTimer(timer.TotalTimeElapsed)
 			timer.LogSummary()
+			gatherer.SendPrometheusInvocationData(gatherer.CurrentInvocationContext)
 		},
 	}
 }

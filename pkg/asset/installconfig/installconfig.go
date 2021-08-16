@@ -19,6 +19,7 @@ import (
 	icovirt "github.com/openshift/installer/pkg/asset/installconfig/ovirt"
 	icpowervs "github.com/openshift/installer/pkg/asset/installconfig/powervs"
 	icvsphere "github.com/openshift/installer/pkg/asset/installconfig/vsphere"
+	"github.com/openshift/installer/pkg/metrics/gatherer"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/defaults"
 	"github.com/openshift/installer/pkg/types/validation"
@@ -175,7 +176,7 @@ func (a *InstallConfig) finish(filename string) error {
 	if err := a.platformValidation(); err != nil {
 		return err
 	}
-
+	gatherer.AddLabelValue(gatherer.CurrentInvocationContext, "platform", a.Config.Platform.Name())
 	return a.RecordFile()
 }
 

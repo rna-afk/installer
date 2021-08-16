@@ -25,6 +25,8 @@ import (
 	serialgather "github.com/openshift/installer/pkg/gather"
 	"github.com/openshift/installer/pkg/gather/service"
 	"github.com/openshift/installer/pkg/gather/ssh"
+	"github.com/openshift/installer/pkg/metrics/gatherer"
+	timer "github.com/openshift/installer/pkg/metrics/timer"
 	platformstages "github.com/openshift/installer/pkg/terraform/stages/platform"
 
 	_ "github.com/openshift/installer/pkg/gather/aws"
@@ -64,8 +66,11 @@ func newGatherBootstrapCmd() *cobra.Command {
 		Run: func(_ *cobra.Command, _ []string) {
 			cleanup := setupFileHook(rootOpts.dir)
 			defer cleanup()
+			gatherer.InitializeInvocationMetrics(gatherer.GatherMetricName)
+			timer.StartTimer(timer.TotalTimeElapsed)
 			bundlePath, err := runGatherBootstrapCmd(rootOpts.dir)
 			if err != nil {
+				gatherer.LogError("failed", gatherer.CurrentInvocationContext)
 				logrus.Fatal(err)
 			}
 
@@ -76,6 +81,7 @@ func newGatherBootstrapCmd() *cobra.Command {
 			}
 
 			logrus.Infof("Bootstrap gather logs captured here %q", bundlePath)
+			timer.StopTimer(timer.TotalTimeElapsed)
 		},
 	}
 	cmd.PersistentFlags().StringVar(&gatherBootstrapOpts.bootstrap, "bootstrap", "", "Hostname or IP of the bootstrap host")

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/openshift/installer/pkg/metrics/gatherer"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -35,6 +36,7 @@ func main() {
 	fsv2.Set("stderrthreshold", "4")
 	klogv2.SetOutput(io.Discard)
 
+	gatherer.Initialize()
 	installerMain()
 }
 
