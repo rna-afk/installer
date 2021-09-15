@@ -45,6 +45,9 @@ func ValidatePlatform(p *vsphere.Platform, fldPath *field.Path) field.ErrorList 
 		allErrs = append(allErrs, validateFolder(p, fldPath)...)
 	}
 
+	if p.DefaultMachinePlatform != nil {
+		allErrs = append(allErrs, validateCPUCores(p.DefaultMachinePlatform, fldPath))
+	}
 	return allErrs
 }
 
@@ -61,6 +64,9 @@ func ValidateForProvisioning(p *vsphere.Platform, fldPath *field.Path) field.Err
 	}
 
 	allErrs = append(allErrs, validateVIPs(p, fldPath)...)
+	if p.DefaultMachinePlatform != nil {
+		allErrs = append(allErrs, validateCPUCores(p.DefaultMachinePlatform, fldPath))
+	}
 	return allErrs
 }
 
@@ -103,4 +109,12 @@ func validateFolder(p *vsphere.Platform, fldPath *field.Path) field.ErrorList {
 	}
 
 	return allErrs
+}
+
+// validateCPUCores checks if the numOfCores has a number lower than the number of CPUs allocated.
+func validateCPUCores(p *vsphere.MachinePool, fldPath *field.Path) *field.Error {
+	if p.NumCoresPerSocket >= p.NumCPUs {
+		return field.Invalid(fldPath.Child("numCoresPerSocket"), p.NumCoresPerSocket, "numCoresPerSocket must be lower than the number of CPUs allocated")
+	}
+	return nil
 }

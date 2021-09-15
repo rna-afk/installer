@@ -152,6 +152,19 @@ func TestValidatePlatform(t *testing.T) {
 			}(),
 			expectedError: `^test-path\.vCenter: Invalid value: "https://test-center": must be the domain name or IP address of the vCenter$`,
 		},
+		{
+			name: "Invalid numOfCores",
+			platform: func() *vsphere.Platform {
+				p := validPlatform()
+				dm := vsphere.MachinePool{
+					NumCPUs:           1,
+					NumCoresPerSocket: 3,
+				}
+				p.DefaultMachinePlatform = &dm
+				return p
+			}(),
+			expectedError: `^test-path.numCoresPerSocket: Invalid value: 3: numCoresPerSocket must be lower than the number of CPUs allocated$`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
