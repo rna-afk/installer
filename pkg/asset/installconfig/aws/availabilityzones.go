@@ -2,12 +2,14 @@ package aws
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // availabilityZones retrieves a list of availability zones for the given region.
@@ -26,6 +28,12 @@ func availabilityZones(ctx context.Context, session *session.Session, region str
 		},
 	})
 	if err != nil {
+		logrus.Infof("here")
+		logrus.Infof(err.Error())
+		logrus.Infof("here")
+		if strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
+			return nil, fmt.Errorf("could not find zones for region %s", region)
+		}
 		return nil, errors.Wrap(err, "fetching availability zones")
 	}
 

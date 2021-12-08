@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/ghodss/yaml"
 	baremetalhost "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
@@ -220,7 +221,9 @@ func (m *Master) Generate(dependencies asset.Parents) error {
 					mpool.Zones = append(mpool.Zones, zone)
 				}
 			} else {
-				mpool.Zones, err = installConfig.AWS.AvailabilityZones(ctx)
+				ctx2, cancel := context.WithTimeout(ctx, 1*time.Minute)
+				defer cancel()
+				mpool.Zones, err = installConfig.AWS.AvailabilityZones(ctx2)
 				if err != nil {
 					return err
 				}
