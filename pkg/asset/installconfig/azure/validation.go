@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
+	client "github.com/openshift/installer/pkg/client/azure"
 	"github.com/openshift/installer/pkg/types"
 	aztypes "github.com/openshift/installer/pkg/types/azure"
 	"github.com/openshift/installer/pkg/types/azure/defaults"
@@ -37,7 +38,7 @@ var computeReq = resourceRequirements{
 }
 
 // Validate executes platform-specific validation.
-func Validate(client API, ic *types.InstallConfig) error {
+func Validate(client client.API, ic *types.InstallConfig) error {
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, validateNetworks(client, ic.Azure, ic.Networking.MachineNetwork, field.NewPath("platform").Child("azure"))...)
@@ -54,7 +55,7 @@ func Validate(client API, ic *types.InstallConfig) error {
 }
 
 // ValidateInstanceType ensures the instance type has sufficient Vcpu and Memory.
-func ValidateInstanceType(client API, fieldPath *field.Path, region, instanceType string, diskType string, req resourceRequirements) field.ErrorList {
+func ValidateInstanceType(client client.API, fieldPath *field.Path, region, instanceType string, diskType string, req resourceRequirements) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	typeMeta, err := client.GetVirtualMachineSku(context.TODO(), instanceType, region)
@@ -109,7 +110,7 @@ func ValidateInstanceType(client API, fieldPath *field.Path, region, instanceTyp
 }
 
 // validateInstanceTypes checks that the user-provided instance types are valid.
-func validateInstanceTypes(client API, ic *types.InstallConfig) field.ErrorList {
+func validateInstanceTypes(client client.API, ic *types.InstallConfig) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	defaultDiskType := aztypes.DefaultDiskType
@@ -162,7 +163,7 @@ func validateInstanceTypes(client API, ic *types.InstallConfig) field.ErrorList 
 }
 
 // validateNetworks checks that the user-provided VNet and subnets are valid.
-func validateNetworks(client API, p *aztypes.Platform, machineNetworks []types.MachineNetworkEntry, fieldPath *field.Path) field.ErrorList {
+func validateNetworks(client client.API, p *aztypes.Platform, machineNetworks []types.MachineNetworkEntry, fieldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if p.VirtualNetwork != "" {
@@ -190,7 +191,7 @@ func validateNetworks(client API, p *aztypes.Platform, machineNetworks []types.M
 }
 
 // validateSubnet checks that the subnet is in the same network as the machine CIDR
-func validateSubnet(client API, fieldPath *field.Path, subnet *aznetwork.Subnet, subnetName string, networks []types.MachineNetworkEntry) field.ErrorList {
+func validateSubnet(client client.API, fieldPath *field.Path, subnet *aznetwork.Subnet, subnetName string, networks []types.MachineNetworkEntry) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	subnetIP, _, err := net.ParseCIDR(*subnet.AddressPrefix)
@@ -212,7 +213,7 @@ func validateMachineNetworksContainIP(fldPath *field.Path, networks []types.Mach
 }
 
 // validateRegion checks that the desired region is valid and available to the user
-func validateRegion(client API, fieldPath *field.Path, p *aztypes.Platform) field.ErrorList {
+func validateRegion(client client.API, fieldPath *field.Path, p *aztypes.Platform) field.ErrorList {
 	locations, err := client.ListLocations(context.TODO())
 	if err != nil {
 		return field.ErrorList{field.InternalError(fieldPath, errors.Wrap(err, "failed to retrieve available regions"))}
@@ -290,7 +291,7 @@ func ValidatePublicDNS(ic *types.InstallConfig, azureDNS *DNSConfig) error {
 }
 
 // ValidateForProvisioning validates if the isntall config if valid for provisioning the cluster.
-func ValidateForProvisioning(client API, ic *types.InstallConfig) error {
+func ValidateForProvisioning(client client.API, ic *types.InstallConfig) error {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, validateResourceGroup(client, field.NewPath("platform").Child("azure"), ic.Azure)...)
 	if ic.Azure.CloudName == aztypes.StackCloud {
@@ -299,7 +300,7 @@ func ValidateForProvisioning(client API, ic *types.InstallConfig) error {
 	return allErrs.ToAggregate()
 }
 
-func validateResourceGroup(client API, fieldPath *field.Path, platform *aztypes.Platform) field.ErrorList {
+func validateResourceGroup(client client.API, fieldPath *field.Path, platform *aztypes.Platform) field.ErrorList {
 	allErrs := field.ErrorList{}
 	if len(platform.ResourceGroupName) == 0 {
 		return allErrs

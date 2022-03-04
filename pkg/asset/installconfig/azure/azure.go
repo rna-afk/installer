@@ -11,6 +11,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/pkg/errors"
 
+	client "github.com/openshift/installer/pkg/client/azure"
 	"github.com/openshift/installer/pkg/types/azure"
 )
 
@@ -22,12 +23,12 @@ const (
 func Platform() (*azure.Platform, error) {
 	// Create client using public cloud because install config has not been generated yet.
 	const cloudName = azure.PublicCloud
-	ssn, err := GetSession(cloudName, "")
+	ssn, err := client.GetSession(cloudName, "")
 	if err != nil {
 		return nil, err
 	}
 
-	client := NewClient(ssn)
+	client := client.NewClient(ssn)
 
 	regions, err := getRegions(context.TODO(), client)
 	if err != nil {
@@ -99,7 +100,7 @@ func Platform() (*azure.Platform, error) {
 	}, nil
 }
 
-func getRegions(ctx context.Context, client API) (map[string]string, error) {
+func getRegions(ctx context.Context, client client.API) (map[string]string, error) {
 	locations, err := client.ListLocations(ctx)
 	if err != nil {
 		return nil, err
@@ -112,7 +113,7 @@ func getRegions(ctx context.Context, client API) (map[string]string, error) {
 	return allLocations, nil
 }
 
-func getResourceCapableRegions(ctx context.Context, client API) ([]string, error) {
+func getResourceCapableRegions(ctx context.Context, client client.API) ([]string, error) {
 	provider, err := client.GetResourcesProvider(ctx, "Microsoft.Resources")
 	if err != nil {
 		return nil, err
