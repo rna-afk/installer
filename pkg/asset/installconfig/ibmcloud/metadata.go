@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/IBM/go-sdk-core/v5/core"
+	"github.com/openshift/installer/pkg/client/ibmcloud"
 )
 
 // Metadata holds additional metadata for InstallConfig resources that
@@ -16,7 +17,7 @@ type Metadata struct {
 
 	accountID      string
 	cisInstanceCRN string
-	client         *Client
+	client         *ibmcloud.Client
 
 	mutex sync.Mutex
 }
@@ -82,9 +83,9 @@ func (m *Metadata) SetCISInstanceCRN(crn string) {
 }
 
 // Client returns a client used for making API calls to IBM Cloud services.
-func (m *Metadata) Client() (*Client, error) {
+func (m *Metadata) Client() (*ibmcloud.Client, error) {
 	if m.client == nil {
-		client, err := NewClient()
+		client, err := ibmcloud.NewClient()
 		if err != nil {
 			return nil, err
 		}

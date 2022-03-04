@@ -9,6 +9,8 @@ import (
 	survey "github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/core"
 	"github.com/pkg/errors"
+
+	"github.com/openshift/installer/pkg/client/ibmcloud"
 )
 
 // Zone represents a DNS Zone
@@ -20,7 +22,7 @@ type Zone struct {
 
 // GetDNSZone returns a DNS Zone chosen by survey.
 func GetDNSZone() (*Zone, error) {
-	client, err := NewClient()
+	client, err := ibmcloud.NewClient()
 	if err != nil {
 		return nil, err
 	}
