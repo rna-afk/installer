@@ -21,7 +21,7 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/api/storage/v1"
 
-	gcpconfig "github.com/openshift/installer/pkg/asset/installconfig/gcp"
+	gcpconfig "github.com/openshift/installer/pkg/client/gcp"
 	"github.com/openshift/installer/pkg/destroy/providers"
 	"github.com/openshift/installer/pkg/types"
 	gcptypes "github.com/openshift/installer/pkg/types/gcp"
