@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
+	client "github.com/openshift/installer/pkg/client/vsphere"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/vsphere"
 	vspheretypes "github.com/openshift/installer/pkg/types/vsphere"
@@ -42,11 +43,11 @@ func ValidateForProvisioning(ic *types.InstallConfig) error {
 		return errors.New(field.InternalError(field.NewPath("platform", "vsphere"), errors.Wrapf(err, "unable to connect to vCenter %s.", p.VCenter)).Error())
 	}
 
-	finder := NewFinder(vim25Client)
+	finder := client.NewFinder(vim25Client)
 	return validateProvisioning(finder, ic)
 }
 
-func validateProvisioning(finder Finder, ic *types.InstallConfig) error {
+func validateProvisioning(finder client.Finder, ic *types.InstallConfig) error {
 	allErrs := field.ErrorList{}
 	allErrs = append(allErrs, validation.ValidateForProvisioning(ic.Platform.VSphere, field.NewPath("platform").Child("vsphere"))...)
 	allErrs = append(allErrs, folderExists(finder, ic, field.NewPath("platform").Child("vsphere").Child("folder"))...)
@@ -59,7 +60,7 @@ func validateProvisioning(finder Finder, ic *types.InstallConfig) error {
 }
 
 // folderExists returns an error if a folder is specified in the vSphere platform but a folder with that name is not found in the datacenter.
-func folderExists(finder Finder, ic *types.InstallConfig, fldPath *field.Path) field.ErrorList {
+func folderExists(finder client.Finder, ic *types.InstallConfig, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	cfg := ic.VSphere
 
@@ -77,7 +78,7 @@ func folderExists(finder Finder, ic *types.InstallConfig, fldPath *field.Path) f
 	return nil
 }
 
-func validateNetwork(finder Finder, p *vsphere.Platform, fldPath *field.Path) field.ErrorList {
+func validateNetwork(finder client.Finder, p *vsphere.Platform, fldPath *field.Path) field.ErrorList {
 	ctx, cancel := context.WithTimeout(context.TODO(), 60*time.Second)
 	defer cancel()
 	dcName := p.Datacenter
@@ -98,7 +99,7 @@ func validateNetwork(finder Finder, p *vsphere.Platform, fldPath *field.Path) fi
 }
 
 // resourcePoolExists returns an error if a resourcePool is specified in the vSphere platform but a resourcePool with that name is not found in the datacenter.
-func resourcePoolExists(finder Finder, ic *types.InstallConfig, fldPath *field.Path) field.ErrorList {
+func resourcePoolExists(finder client.Finder, ic *types.InstallConfig, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	cfg := ic.VSphere
 
