@@ -7,11 +7,11 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/openshift/installer/pkg/asset"
-	gcpconfig "github.com/openshift/installer/pkg/asset/installconfig/gcp"
-	ibmcloudconfig "github.com/openshift/installer/pkg/asset/installconfig/ibmcloud"
 	openstackconfig "github.com/openshift/installer/pkg/asset/installconfig/openstack"
 	ovirtconfig "github.com/openshift/installer/pkg/asset/installconfig/ovirt"
 	powervsconfig "github.com/openshift/installer/pkg/asset/installconfig/powervs"
+	gcpconfig "github.com/openshift/installer/pkg/client/gcp"
+	ibmcloudconfig "github.com/openshift/installer/pkg/client/ibmcloud"
 	"github.com/openshift/installer/pkg/types/alibabacloud"
 	"github.com/openshift/installer/pkg/types/aws"
 	"github.com/openshift/installer/pkg/types/azure"

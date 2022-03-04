@@ -16,7 +16,7 @@ import (
 	"github.com/openshift/installer/pkg/asset/installconfig"
 	icaws "github.com/openshift/installer/pkg/asset/installconfig/aws"
 	icgcp "github.com/openshift/installer/pkg/asset/installconfig/gcp"
-	icibmcloud "github.com/openshift/installer/pkg/asset/installconfig/ibmcloud"
+	icibmcloud "github.com/openshift/installer/pkg/client/ibmcloud"
 	"github.com/openshift/installer/pkg/types"
 	alibabacloudtypes "github.com/openshift/installer/pkg/types/alibabacloud"
 	awstypes "github.com/openshift/installer/pkg/types/aws"
