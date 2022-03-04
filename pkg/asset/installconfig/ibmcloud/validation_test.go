@@ -9,7 +9,7 @@ import (
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 	"github.com/golang/mock/gomock"
 	"github.com/openshift/installer/pkg/asset/installconfig/ibmcloud"
-	"github.com/openshift/installer/pkg/asset/installconfig/ibmcloud/mock"
+	"github.com/openshift/installer/pkg/client/ibmcloud/mock"
 	"github.com/openshift/installer/pkg/ipnet"
 	"github.com/openshift/installer/pkg/types"
 	ibmcloudtypes "github.com/openshift/installer/pkg/types/ibmcloud"

@@ -3,7 +3,7 @@ package ibmcloud
 import (
 	"context"
 
-	"github.com/openshift/installer/pkg/asset/installconfig/ibmcloud"
+	"github.com/openshift/installer/pkg/client/ibmcloud"
 )
 
 // AvailabilityZones returns a list of supported zones for the specified region.

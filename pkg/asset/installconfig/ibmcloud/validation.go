@@ -9,12 +9,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
+	ibmcloudclient "github.com/openshift/installer/pkg/client/ibmcloud"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/ibmcloud"
 )
 
 // Validate executes platform-specific validation.
-func Validate(client API, ic *types.InstallConfig) error {
+func Validate(client ibmcloudclient.API, ic *types.InstallConfig) error {
 	allErrs := field.ErrorList{}
 	platformPath := field.NewPath("platform").Child("ibmcloud")
 	allErrs = append(allErrs, validatePlatform(client, ic, platformPath)...)
@@ -35,7 +36,7 @@ func Validate(client API, ic *types.InstallConfig) error {
 	return allErrs.ToAggregate()
 }
 
-func validatePlatform(client API, ic *types.InstallConfig, path *field.Path) field.ErrorList {
+func validatePlatform(client ibmcloudclient.API, ic *types.InstallConfig, path *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if ic.Platform.IBMCloud.ResourceGroupName != "" {
@@ -48,7 +49,7 @@ func validatePlatform(client API, ic *types.InstallConfig, path *field.Path) fie
 	return allErrs
 }
 
-func validateMachinePool(client API, platform *ibmcloud.Platform, machinePool *ibmcloud.MachinePool, path *field.Path) field.ErrorList {
+func validateMachinePool(client ibmcloudclient.API, platform *ibmcloud.Platform, machinePool *ibmcloud.MachinePool, path *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if machinePool.InstanceType != "" {
@@ -70,7 +71,7 @@ func validateMachinePool(client API, platform *ibmcloud.Platform, machinePool *i
 	return allErrs
 }
 
-func validateMachinePoolDedicatedHosts(client API, dhosts []ibmcloud.DedicatedHost, machineType string, zones []string, region string, path *field.Path) field.ErrorList {
+func validateMachinePoolDedicatedHosts(client ibmcloudclient.API, dhosts []ibmcloud.DedicatedHost, machineType string, zones []string, region string, path *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	// Get list of supported profiles in region
@@ -142,7 +143,7 @@ func isDedicatedHostProfileInList(profile string, list []vpcv1.DedicatedHostProf
 	return false
 }
 
-func validateMachinePoolType(client API, machineType string, path *field.Path) field.ErrorList {
+func validateMachinePoolType(client ibmcloudclient.API, machineType string, path *field.Path) field.ErrorList {
 	vsiProfiles, err := client.GetVSIProfiles(context.TODO())
 	if err != nil {
 		return field.ErrorList{field.InternalError(path, err)}
@@ -157,7 +158,7 @@ func validateMachinePoolType(client API, machineType string, path *field.Path) f
 	return field.ErrorList{field.NotFound(path, machineType)}
 }
 
-func validateMachinePoolZones(client API, region string, zones []string, path *field.Path) field.ErrorList {
+func validateMachinePoolZones(client ibmcloudclient.API, region string, zones []string, path *field.Path) field.ErrorList {
 	regionalZones, err := client.GetVPCZonesForRegion(context.TODO(), region)
 	if err != nil {
 		return field.ErrorList{field.InternalError(path, err)}
@@ -172,7 +173,7 @@ func validateMachinePoolZones(client API, region string, zones []string, path *f
 	return nil
 }
 
-func validateMachinePoolBootVolume(client API, bootVolume ibmcloud.BootVolume, path *field.Path) field.ErrorList {
+func validateMachinePoolBootVolume(client ibmcloudclient.API, bootVolume ibmcloud.BootVolume, path *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if bootVolume.EncryptionKey == "" {
@@ -192,7 +193,7 @@ func validateMachinePoolBootVolume(client API, bootVolume ibmcloud.BootVolume, p
 	return allErrs
 }
 
-func validateResourceGroup(client API, ic *types.InstallConfig, path *field.Path) field.ErrorList {
+func validateResourceGroup(client ibmcloudclient.API, ic *types.InstallConfig, path *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if ic.IBMCloud.ResourceGroupName == "" {
@@ -218,7 +219,7 @@ func validateResourceGroup(client API, ic *types.InstallConfig, path *field.Path
 	return allErrs
 }
 
-func validateSubnetZone(client API, subnetID string, validZones sets.String, subnetPath *field.Path) field.ErrorList {
+func validateSubnetZone(client ibmcloudclient.API, subnetID string, validZones sets.String, subnetPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 	if subnet, err := client.GetSubnet(context.TODO(), subnetID); err == nil {
 		zoneName := *subnet.Zone.Name
@@ -226,7 +227,7 @@ func validateSubnetZone(client API, subnetID string, validZones sets.String, sub
 			allErrs = append(allErrs, field.Invalid(subnetPath, subnetID, fmt.Sprintf("subnet is not in expected zones: %s", validZones.List())))
 		}
 	} else {
-		if errors.Is(err, &VPCResourceNotFoundError{}) {
+		if errors.Is(err, &ibmcloudclient.VPCResourceNotFoundError{}) {
 			allErrs = append(allErrs, field.NotFound(subnetPath, subnetID))
 		} else {
 			allErrs = append(allErrs, field.InternalError(subnetPath, err))
@@ -237,7 +238,7 @@ func validateSubnetZone(client API, subnetID string, validZones sets.String, sub
 
 // ValidatePreExitingPublicDNS ensure no pre-existing DNS record exists in the CIS
 // DNS zone for cluster's Kubernetes API.
-func ValidatePreExitingPublicDNS(client API, ic *types.InstallConfig, metadata *Metadata) error {
+func ValidatePreExitingPublicDNS(client ibmcloudclient.API, ic *types.InstallConfig, metadata *Metadata) error {
 	// Get CIS CRN
 	crn, err := metadata.CISInstanceCRN(context.TODO())
 	if err != nil {
