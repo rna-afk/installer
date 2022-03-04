@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	gcpconfig "github.com/openshift/installer/pkg/asset/installconfig/gcp"
+	gcpconfig "github.com/openshift/installer/pkg/client/gcp"
 	"github.com/openshift/installer/pkg/quota"
 )
 

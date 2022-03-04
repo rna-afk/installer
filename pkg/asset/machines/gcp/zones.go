@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	gcpconfig "github.com/openshift/installer/pkg/asset/installconfig/gcp"
+	gcpconfig "github.com/openshift/installer/pkg/client/gcp"
 	"github.com/pkg/errors"
 	compute "google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
