@@ -15,6 +15,8 @@ import (
 	ovirtconfig "github.com/openshift/installer/pkg/asset/installconfig/ovirt"
 	powervsconfig "github.com/openshift/installer/pkg/asset/installconfig/powervs"
 	vsconfig "github.com/openshift/installer/pkg/asset/installconfig/vsphere"
+	gcpclient "github.com/openshift/installer/pkg/client/gcp"
+	ibmcloudclient "github.com/openshift/installer/pkg/client/ibmcloud"
 	"github.com/openshift/installer/pkg/types/alibabacloud"
 	"github.com/openshift/installer/pkg/types/aws"
 	"github.com/openshift/installer/pkg/types/azure"
@@ -76,7 +78,7 @@ func (a *PlatformProvisionCheck) Generate(dependencies asset.Parents) error {
 			return err
 		}
 	case gcp.Name:
-		client, err := gcpconfig.NewClient(context.TODO())
+		client, err := gcpclient.NewClient(context.TODO())
 		if err != nil {
 			return err
 		}
@@ -85,7 +87,7 @@ func (a *PlatformProvisionCheck) Generate(dependencies asset.Parents) error {
 			return err
 		}
 	case ibmcloud.Name:
-		client, err := ibmcloudconfig.NewClient()
+		client, err := ibmcloudclient.NewClient()
 		if err != nil {
 			return err
 		}
