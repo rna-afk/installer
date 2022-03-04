@@ -34,6 +34,11 @@ type Client struct {
 	ssn *Session
 }
 
+// SetSession takes in a session object and sets it to the client.
+func (c *Client) SetSession(ssn *Session) {
+	c.ssn = ssn
+}
+
 // NewClient initializes a client with a session.
 func NewClient(ctx context.Context) (*Client, error) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
