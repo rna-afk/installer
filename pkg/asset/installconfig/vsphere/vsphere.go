@@ -15,6 +15,7 @@ import (
 	"github.com/vmware/govmomi/vim25"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	client "github.com/openshift/installer/pkg/client/vsphere"
 	"github.com/openshift/installer/pkg/types/vsphere"
 	vspheretypes "github.com/openshift/installer/pkg/types/vsphere"
 	"github.com/openshift/installer/pkg/validate"
@@ -49,7 +50,7 @@ func Platform() (*vsphere.Platform, error) {
 		return nil, err
 	}
 
-	finder := NewFinder(vCenter.Client)
+	finder := client.NewFinder(vCenter.Client)
 	ctx := context.TODO()
 
 	dc, dcPath, err := getDataCenter(ctx, finder, vCenter.Client)
@@ -160,7 +161,7 @@ func getClients() (*vCenterClient, error) {
 // getDataCenter searches the root for all datacenters and, if there is more than one, lets the user select
 // one to use for installation. Returns the name and path of the selected datacenter. The name is used
 // to generate the install config and the path is used to determine the options for cluster, datastore and network.
-func getDataCenter(ctx context.Context, finder Finder, client *vim25.Client) (string, string, error) {
+func getDataCenter(ctx context.Context, finder client.Finder, client *vim25.Client) (string, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
@@ -205,7 +206,7 @@ func getDataCenter(ctx context.Context, finder Finder, client *vim25.Client) (st
 	return selectedDataCenter, dataCenterPaths[selectedDataCenter], nil
 }
 
-func getCluster(ctx context.Context, path string, finder Finder, client *vim25.Client) (string, error) {
+func getCluster(ctx context.Context, path string, finder client.Finder, client *vim25.Client) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
@@ -248,7 +249,7 @@ func getCluster(ctx context.Context, path string, finder Finder, client *vim25.C
 	return selectedcluster, nil
 }
 
-func getDataStore(ctx context.Context, path string, finder Finder, client *vim25.Client) (string, error) {
+func getDataStore(ctx context.Context, path string, finder client.Finder, client *vim25.Client) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
@@ -289,7 +290,7 @@ func getDataStore(ctx context.Context, path string, finder Finder, client *vim25
 	return selectedDataStore, nil
 }
 
-func getNetwork(ctx context.Context, path string, finder Finder, client *vim25.Client) (string, error) {
+func getNetwork(ctx context.Context, path string, finder client.Finder, client *vim25.Client) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
