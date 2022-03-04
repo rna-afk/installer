@@ -21,7 +21,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	icibmcloud "github.com/openshift/installer/pkg/asset/installconfig/ibmcloud"
+	client "github.com/openshift/installer/pkg/client/ibmcloud"
 	"github.com/openshift/installer/pkg/destroy/providers"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/version"
@@ -178,7 +178,7 @@ func (o *ClusterUninstaller) loadSDKServices() error {
 	userAgentString := fmt.Sprintf("OpenShift/4.x Destroyer/%s", version.Raw)
 
 	// ResourceManagerV2
-	rmAuthenticator, err := icibmcloud.NewIamAuthenticator(apiKey)
+	rmAuthenticator, err := client.NewIamAuthenticator(apiKey)
 	if err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func (o *ClusterUninstaller) loadSDKServices() error {
 	o.managementSvc.Service.SetUserAgent(userAgentString)
 
 	// ResourceControllerV2
-	rcAuthenticator, err := icibmcloud.NewIamAuthenticator(apiKey)
+	rcAuthenticator, err := client.NewIamAuthenticator(apiKey)
 	if err != nil {
 		return err
 	}
@@ -204,7 +204,7 @@ func (o *ClusterUninstaller) loadSDKServices() error {
 	o.controllerSvc.Service.SetUserAgent(userAgentString)
 
 	// IamPolicyManagementV1
-	ipmAuthenticator, err := icibmcloud.NewIamAuthenticator(apiKey)
+	ipmAuthenticator, err := client.NewIamAuthenticator(apiKey)
 	if err != nil {
 		return err
 	}
@@ -217,7 +217,7 @@ func (o *ClusterUninstaller) loadSDKServices() error {
 	o.iamPolicyManagementSvc.Service.SetUserAgent(userAgentString)
 
 	// ZonesV1
-	zAuthenticator, err := icibmcloud.NewIamAuthenticator(apiKey)
+	zAuthenticator, err := client.NewIamAuthenticator(apiKey)
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func (o *ClusterUninstaller) loadSDKServices() error {
 	}
 
 	// DnsRecordsV1
-	dnsAuthenticator, err := icibmcloud.NewIamAuthenticator(apiKey)
+	dnsAuthenticator, err := client.NewIamAuthenticator(apiKey)
 	if err != nil {
 		return err
 	}
@@ -263,7 +263,7 @@ func (o *ClusterUninstaller) loadSDKServices() error {
 	o.dnsRecordsSvc.Service.SetUserAgent(userAgentString)
 
 	// VpcV1
-	vpcAuthenticator, err := icibmcloud.NewIamAuthenticator(apiKey)
+	vpcAuthenticator, err := client.NewIamAuthenticator(apiKey)
 	if err != nil {
 		return err
 	}

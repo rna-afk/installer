@@ -464,3 +464,8 @@ func (c *Client) setVPCServiceURLForRegion(ctx context.Context, region string) e
 	}
 	return nil
 }
+
+// NewIamAuthenticator returns a new IamAuthenticator for using IBM Cloud services.
+func NewIamAuthenticator(apiKey string) (*core.IamAuthenticator, error) {
+	return core.NewIamAuthenticatorBuilder().SetApiKey(apiKey).Build()
+}
