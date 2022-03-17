@@ -35,6 +35,7 @@ import (
 	"github.com/openshift/installer/pkg/asset"
 	"github.com/openshift/installer/pkg/asset/ignition/machine"
 	"github.com/openshift/installer/pkg/asset/installconfig"
+	icazure "github.com/openshift/installer/pkg/asset/installconfig/azure"
 	"github.com/openshift/installer/pkg/asset/machines/alibabacloud"
 	"github.com/openshift/installer/pkg/asset/machines/aws"
 	"github.com/openshift/installer/pkg/asset/machines/azure"
@@ -358,7 +359,17 @@ func (m *Master) Generate(dependencies asset.Parents) error {
 
 		pool.Platform.Azure = &mpool
 
-		machines, err = azure.Machines(clusterID.InfraID, ic, &pool, string(*rhcosImage), "master", masterUserDataSecretName)
+		ssn, err := icazure.GetSession(installConfig.Azure.CloudName, installConfig.Azure.ARMEndpoint)
+		if err != nil {
+			return err
+		}
+		client := icazure.NewClient(ssn)
+		hyperVGeneration, err := client.GetHyperVGenerationVersion(context.TODO(), mpool.InstanceType, mpool.OSDisk.DiskType, installConfig.Config.Platform.Azure.Region)
+		if err != nil {
+			return err
+		}
+
+		machines, err = azure.Machines(clusterID.InfraID, ic, &pool, string(*rhcosImage), "master", masterUserDataSecretName, hyperVGeneration)
 		if err != nil {
 			return errors.Wrap(err, "failed to create master machine objects")
 		}

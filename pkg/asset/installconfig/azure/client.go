@@ -2,6 +2,7 @@ package azure
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	azsubs "github.com/Azure/azure-sdk-for-go/profiles/2018-03-01/resources/mgmt/subscriptions"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 //go:generate mockgen -source=./client.go -destination=mock/azureclient_generated.go -package=mock
@@ -27,6 +29,7 @@ type API interface {
 	GetGroup(ctx context.Context, groupName string) (*azres.Group, error)
 	ListResourceIDsByGroup(ctx context.Context, groupName string) ([]string, error)
 	GetStorageEndpointSuffix(ctx context.Context) (string, error)
+	GetHyperVGenerationVersion(ctx context.Context, instanceType string, diskType string, region string) (string, error)
 }
 
 // Client makes calls to the Azure API.
@@ -249,4 +252,29 @@ func (c *Client) GetVirtualMachineSku(ctx context.Context, name, region string) 
 		}
 	}
 	return nil, nil
+}
+
+// GetHyperVGenerationVersion gets the HyperVGeneration version for the given disk instance type. Defaults to V2 if either V1 or V2
+// available.
+func (c *Client) GetHyperVGenerationVersion(ctx context.Context, instanceType string, diskType string, region string) (version string, err error) {
+	typeMeta, err := c.GetVirtualMachineSku(ctx, instanceType, region)
+	if err != nil {
+		return "", fmt.Errorf("error onnecting to Azure client: %s", err.Error())
+	}
+
+	for _, capability := range *typeMeta.Capabilities {
+		if strings.EqualFold(*capability.Name, "HyperVGenerations") {
+			generations := sets.NewString()
+			for _, g := range strings.Split(to.String(capability.Value), ",") {
+				g = strings.TrimSpace(g)
+				g = strings.ToUpper(g)
+				generations.Insert(g)
+			}
+			if generations.Has("V2") {
+				return "V2", nil
+			}
+			return "V1", nil
+		}
+	}
+	return "", fmt.Errorf("failed to fetch HyperVGeneration version for given instance type")
 }

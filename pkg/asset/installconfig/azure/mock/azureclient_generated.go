@@ -186,3 +186,18 @@ func (mr *MockAPIMockRecorder) GetStorageEndpointSuffix(ctx interface{}) *gomock
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStorageEndpointSuffix", reflect.TypeOf((*MockAPI)(nil).GetStorageEndpointSuffix), ctx)
 }
+
+// GetHyperVGenerationVersion mocks base method
+func (m *MockAPI) GetHyperVGenerationVersion(ctx context.Context, instanceType, diskType, region string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetHyperVGenerationVersion", ctx, instanceType, diskType, region)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetHyperVGenerationVersion indicates an expected call of GetHyperVGenerationVersion
+func (mr *MockAPIMockRecorder) GetHyperVGenerationVersion(ctx, instanceType, diskType, region interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHyperVGenerationVersion", reflect.TypeOf((*MockAPI)(nil).GetHyperVGenerationVersion), ctx, instanceType, diskType, region)
+}

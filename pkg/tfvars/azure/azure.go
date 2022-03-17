@@ -43,6 +43,7 @@ type config struct {
 	OutboundUDR                     bool              `json:"azure_outbound_user_defined_routing"`
 	BootstrapIgnitionStub           string            `json:"azure_bootstrap_ignition_stub"`
 	BootstrapIgnitionURLPlaceholder string            `json:"azure_bootstrap_ignition_url_placeholder"`
+	HyperVGeneration                string            `json:"azure_hypervgeneration_version"`
 }
 
 // TFVarsSources contains the parameters to be converted into Terraform variables
@@ -60,6 +61,7 @@ type TFVarsSources struct {
 	OutboundType                    azure.OutboundType
 	BootstrapIgnStub                string
 	BootstrapIgnitionURLPlaceholder string
+	HyperVGeneration                string
 }
 
 // TFVars generates Azure-specific Terraform variables launching the cluster.
@@ -111,6 +113,7 @@ func TFVars(sources TFVarsSources) ([]byte, error) {
 		PreexistingNetwork:              sources.PreexistingNetwork,
 		BootstrapIgnitionStub:           sources.BootstrapIgnStub,
 		BootstrapIgnitionURLPlaceholder: sources.BootstrapIgnitionURLPlaceholder,
+		HyperVGeneration:                sources.HyperVGeneration,
 	}
 
 	return json.MarshalIndent(cfg, "", "  ")
