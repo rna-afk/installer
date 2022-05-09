@@ -49,22 +49,22 @@ var _ asset.WritableAsset = (*InstallConfig)(nil)
 func (a *InstallConfig) Dependencies() []asset.Asset {
 	return []asset.Asset{
 		&sshPublicKey{},
-		&baseDomain{},
+		&BaseDomain{},
 		&clusterName{},
 		&networking{},
 		&pullSecret{},
-		&platform{},
+		&Platform{},
 	}
 }
 
 // Generate generates the install-config.yaml file.
 func (a *InstallConfig) Generate(parents asset.Parents) error {
 	sshPublicKey := &sshPublicKey{}
-	baseDomain := &baseDomain{}
+	baseDomain := &BaseDomain{}
 	clusterName := &clusterName{}
 	networking := &networking{}
 	pullSecret := &pullSecret{}
-	platform := &platform{}
+	platform := &Platform{}
 	parents.Get(
 		sshPublicKey,
 		baseDomain,

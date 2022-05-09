@@ -21,26 +21,26 @@ import (
 	"github.com/openshift/installer/pkg/validate"
 )
 
-type baseDomain struct {
+type BaseDomain struct {
 	BaseDomain string
 }
 
-var _ asset.Asset = (*baseDomain)(nil)
+var _ asset.Asset = (*BaseDomain)(nil)
 
 // Dependencies returns no dependencies.
-func (a *baseDomain) Dependencies() []asset.Asset {
+func (a *BaseDomain) Dependencies() []asset.Asset {
 	return []asset.Asset{
-		&platform{},
+		&Platform{},
 	}
 }
 
 // Generate queries for the base domain from the user.
-func (a *baseDomain) Generate(parents asset.Parents) error {
-	platform := &platform{}
-	parents.Get(platform)
+func (a *BaseDomain) Generate(parents asset.Parents) error {
+	Platform := &Platform{}
+	parents.Get(Platform)
 
 	var err error
-	switch platform.CurrentName() {
+	switch Platform.CurrentName() {
 	case alibabacloud.Name:
 		a.BaseDomain, err = alibabacloudconfig.GetBaseDomain()
 		if err != nil {
@@ -65,9 +65,9 @@ func (a *baseDomain) Generate(parents asset.Parents) error {
 			return err
 		}
 		a.BaseDomain = zone.Name
-		return platform.Azure.SetBaseDomain(zone.ID)
+		return Platform.Azure.SetBaseDomain(zone.ID)
 	case gcp.Name:
-		a.BaseDomain, err = gcpconfig.GetBaseDomain(platform.GCP.ProjectID)
+		a.BaseDomain, err = gcpconfig.GetBaseDomain(Platform.GCP.ProjectID)
 
 		// We are done if success (err == nil) or an err besides forbidden/throttling
 		if !(gcpconfig.IsForbidden(err) || gcpconfig.IsThrottled(err)) {
@@ -108,6 +108,6 @@ func (a *baseDomain) Generate(parents asset.Parents) error {
 }
 
 // Name returns the human-friendly name of the asset.
-func (a *baseDomain) Name() string {
+func (a *BaseDomain) Name() string {
 	return "Base Domain"
 }

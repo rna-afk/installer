@@ -18,31 +18,31 @@ var _ asset.Asset = (*clusterName)(nil)
 // Dependencies returns no dependencies.
 func (a *clusterName) Dependencies() []asset.Asset {
 	return []asset.Asset{
-		&baseDomain{},
-		&platform{},
+		&BaseDomain{},
+		&Platform{},
 	}
 }
 
 // Generate queries for the cluster name from the user.
 func (a *clusterName) Generate(parents asset.Parents) error {
-	bd := &baseDomain{}
-	platform := &platform{}
-	parents.Get(bd, platform)
+	bd := &BaseDomain{}
+	Platform := &Platform{}
+	parents.Get(bd, Platform)
 
 	validator := survey.Required
 
-	if platform.GCP != nil || platform.Azure != nil {
+	if Platform.GCP != nil || Platform.Azure != nil {
 		validator = survey.ComposeValidators(validator, func(ans interface{}) error {
 			return validate.ClusterName1035(ans.(string))
 		})
-		if platform.GCP != nil {
+		if Platform.GCP != nil {
 			validator = survey.ComposeValidators(validator, func(ans interface{}) error {
 				return validate.GCPClusterName(ans.(string))
 			})
 		}
 	}
 
-	if platform.Ovirt != nil {
+	if Platform.Ovirt != nil {
 		// FIX-ME: As soon bz#1915122 get resolved remove the limitation of 14 chars for the clustername
 		validator = survey.ComposeValidators(validator, func(ans interface{}) error {
 			return validate.ClusterNameMaxLength(ans.(string), 14)

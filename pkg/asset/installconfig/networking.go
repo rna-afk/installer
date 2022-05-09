@@ -16,14 +16,14 @@ var _ asset.Asset = (*networking)(nil)
 // Dependencies returns no dependencies.
 func (a *networking) Dependencies() []asset.Asset {
 	return []asset.Asset{
-		&platform{},
+		&Platform{},
 	}
 }
 
 // Generate queries for the networking from the user.
 func (a *networking) Generate(parents asset.Parents) error {
-	platform := &platform{}
-	parents.Get(platform)
+	Platform := &Platform{}
+	parents.Get(Platform)
 	return nil
 }
 

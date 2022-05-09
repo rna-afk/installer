@@ -39,19 +39,19 @@ import (
 
 // Platform is an asset that queries the user for the platform on which to install
 // the cluster.
-type platform struct {
+type Platform struct {
 	types.Platform
 }
 
-var _ asset.Asset = (*platform)(nil)
+var _ asset.Asset = (*Platform)(nil)
 
 // Dependencies returns no dependencies.
-func (a *platform) Dependencies() []asset.Asset {
+func (a *Platform) Dependencies() []asset.Asset {
 	return []asset.Asset{}
 }
 
 // Generate queries for input from the user.
-func (a *platform) Generate(asset.Parents) error {
+func (a *Platform) Generate(asset.Parents) error {
 	platform, err := a.queryUserForPlatform()
 	if err != nil {
 		return err
@@ -125,11 +125,11 @@ func (a *platform) Generate(asset.Parents) error {
 }
 
 // Name returns the human-friendly name of the asset.
-func (a *platform) Name() string {
+func (a *Platform) Name() string {
 	return "Platform"
 }
 
-func (a *platform) queryUserForPlatform() (platform string, err error) {
+func (a *Platform) queryUserForPlatform() (platform string, err error) {
 	err = survey.Ask([]*survey.Question{
 		{
 			Prompt: &survey.Select{
@@ -150,6 +150,6 @@ func (a *platform) queryUserForPlatform() (platform string, err error) {
 	return
 }
 
-func (a *platform) CurrentName() string {
+func (a *Platform) CurrentName() string {
 	return a.Platform.Name()
 }

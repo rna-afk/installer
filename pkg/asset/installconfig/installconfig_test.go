@@ -20,10 +20,10 @@ import (
 
 func TestInstallConfigGenerate_FillsInDefaults(t *testing.T) {
 	sshPublicKey := &sshPublicKey{}
-	baseDomain := &baseDomain{"test-domain"}
+	baseDomain := &BaseDomain{"test-domain"}
 	clusterName := &clusterName{"test-cluster"}
 	pullSecret := &pullSecret{`{"auths":{"example.com":{"auth":"authorization value"}}}`}
-	platform := &platform{
+	platform := &Platform{
 		Platform: types.Platform{None: &none.Platform{}},
 	}
 	installConfig := &InstallConfig{}
@@ -184,7 +184,7 @@ apiVersion: v1
 metadata:
   name: test-cluster
 baseDomain: test-domain
-platform:
+Platform:
   aws:
     region: us-east-1
 pullSecret: "{\"auths\":{\"example.com\":{\"auth\":\"authorization value\"}}}"
@@ -199,7 +199,7 @@ apiVersion: v1beta3
 metadata:
   name: test-cluster
 baseDomain: test-domain
-platform:
+Platform:
   aws:
     region: us-east-1
 pullSecret: "{\"auths\":{\"example.com\":{\"auth\":\"authorization value\"}}}"
