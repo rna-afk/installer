@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +34,7 @@ import (
 	destroybootstrap "github.com/openshift/installer/pkg/destroy/bootstrap"
 	"github.com/openshift/installer/pkg/gather/service"
 	timer "github.com/openshift/installer/pkg/metrics/timer"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types/baremetal"
 	cov1helpers "github.com/openshift/library-go/pkg/config/clusteroperator/v1helpers"
 	"github.com/openshift/library-go/pkg/route/routeapihelpers"
@@ -116,39 +116,39 @@ var (
 				// directory is a bit cludgy when we already have them in memory.
 				config, err := clientcmd.BuildConfigFromFlags("", filepath.Join(rootOpts.dir, "auth", "kubeconfig"))
 				if err != nil {
-					logrus.Fatal(errors.Wrap(err, "loading kubeconfig"))
+					stdlogger.Fatal(errors.Wrap(err, "loading kubeconfig"))
 				}
 
 				timer.StartTimer("Bootstrap Complete")
 				if err := waitForBootstrapComplete(ctx, config); err != nil {
 					bundlePath, gatherErr := runGatherBootstrapCmd(rootOpts.dir)
 					if gatherErr != nil {
-						logrus.Error("Attempted to gather debug logs after installation failure: ", gatherErr)
+						stdlogger.Error("Attempted to gather debug logs after installation failure: ", gatherErr)
 					}
 					if err := logClusterOperatorConditions(ctx, config); err != nil {
-						logrus.Error("Attempted to gather ClusterOperator status after installation failure: ", err)
+						stdlogger.Error("Attempted to gather ClusterOperator status after installation failure: ", err)
 					}
-					logrus.Error("Bootstrap failed to complete: ", err.Unwrap())
-					logrus.Error(err.Error())
+					stdlogger.Error("Bootstrap failed to complete: ", err.Unwrap())
+					stdlogger.Error(err.Error())
 					if gatherErr == nil {
 						if err := service.AnalyzeGatherBundle(bundlePath); err != nil {
-							logrus.Error("Attempted to analyze the debug logs after installation failure: ", err)
+							stdlogger.Error("Attempted to analyze the debug logs after installation failure: ", err)
 						}
-						logrus.Infof("Bootstrap gather logs captured here %q", bundlePath)
+						stdlogger.Infof("Bootstrap gather logs captured here %q", bundlePath)
 					}
-					logrus.Exit(exitCodeBootstrapFailed)
+					stdlogger.Exit(exitCodeBootstrapFailed)
 				}
 				timer.StopTimer("Bootstrap Complete")
 				timer.StartTimer("Bootstrap Destroy")
 
 				if oi, ok := os.LookupEnv("OPENSHIFT_INSTALL_PRESERVE_BOOTSTRAP"); ok && oi != "" {
-					logrus.Warn("OPENSHIFT_INSTALL_PRESERVE_BOOTSTRAP is set, not destroying bootstrap resources. " +
+					stdlogger.Warn("OPENSHIFT_INSTALL_PRESERVE_BOOTSTRAP is set, not destroying bootstrap resources. " +
 						"Warning: this should only be used for debugging purposes, and poses a risk to cluster stability.")
 				} else {
-					logrus.Info("Destroying the bootstrap resources...")
+					stdlogger.Info("Destroying the bootstrap resources...")
 					err = destroybootstrap.Destroy(rootOpts.dir)
 					if err != nil {
-						logrus.Fatal(err)
+						stdlogger.Fatal(err)
 					}
 				}
 				timer.StopTimer("Bootstrap Destroy")
@@ -156,11 +156,11 @@ var (
 				err = waitForInstallComplete(ctx, config, rootOpts.dir)
 				if err != nil {
 					if err2 := logClusterOperatorConditions(ctx, config); err2 != nil {
-						logrus.Error("Attempted to gather ClusterOperator status after installation failure: ", err2)
+						stdlogger.Error("Attempted to gather ClusterOperator status after installation failure: ", err2)
 					}
 					logTroubleshootingLink()
-					logrus.Error(err)
-					logrus.Exit(exitCodeInstallFailed)
+					stdlogger.Error(err)
+					stdlogger.Exit(exitCodeInstallFailed)
 				}
 				timer.StopTimer(timer.TotalTimeElapsed)
 				timer.LogSummary()
@@ -255,7 +255,7 @@ func runTargetCmd(targets ...asset.WritableAsset) func(cmd *cobra.Command, args 
 			if err2 := asset.PersistToFile(a, directory); err2 != nil {
 				err2 = errors.Wrapf(err2, "failed to write asset (%s) to disk", a.Name())
 				if err != nil {
-					logrus.Error(err2)
+					stdlogger.Error(err2)
 					return err
 				}
 				return err2
@@ -279,17 +279,17 @@ func runTargetCmd(targets ...asset.WritableAsset) func(cmd *cobra.Command, args 
 		err := runner(rootOpts.dir)
 		if err != nil {
 			if strings.Contains(err.Error(), asset.InstallConfigError) {
-				logrus.Error(err)
-				logrus.Exit(exitCodeInstallConfigError)
+				stdlogger.Error(err)
+				stdlogger.Exit(exitCodeInstallConfigError)
 			}
 			if strings.Contains(err.Error(), asset.ClusterCreationError) {
-				logrus.Error(err)
-				logrus.Exit(exitCodeInfrastructureFailed)
+				stdlogger.Error(err)
+				stdlogger.Exit(exitCodeInfrastructureFailed)
 			}
-			logrus.Fatal(err)
+			stdlogger.Fatal(err)
 		}
 		if cmd.Name() != "cluster" {
-			logrus.Infof(logging.LogCreatedFiles(cmd.Name(), rootOpts.dir, targets))
+			stdlogger.Infof(logging.LogCreatedFiles(cmd.Name(), rootOpts.dir, targets))
 		}
 
 	}
@@ -352,7 +352,7 @@ func waitForBootstrapComplete(ctx context.Context, config *rest.Config) *cluster
 	apiTimeout := 20 * time.Minute
 
 	untilTime := time.Now().Add(apiTimeout)
-	logrus.Infof("Waiting up to %v (until %v) for the Kubernetes API at %s...",
+	stdlogger.Infof("Waiting up to %v (until %v) for the Kubernetes API at %s...",
 		apiTimeout, untilTime.Format(time.Kitchen), config.Host)
 
 	apiContext, cancel := context.WithTimeout(ctx, apiTimeout)
@@ -368,7 +368,7 @@ func waitForBootstrapComplete(ctx context.Context, config *rest.Config) *cluster
 	wait.Until(func() {
 		version, err := discovery.ServerVersion()
 		if err == nil {
-			logrus.Infof("API %s up", version)
+			stdlogger.Infof("API %s up", version)
 			timer.StopTimer("API")
 			cancel()
 		} else {
@@ -377,11 +377,11 @@ func waitForBootstrapComplete(ctx context.Context, config *rest.Config) *cluster
 			chunks := strings.Split(err.Error(), ":")
 			errorSuffix := chunks[len(chunks)-1]
 			if previousErrorSuffix != errorSuffix {
-				logrus.Debugf("Still waiting for the Kubernetes API: %v", err)
+				stdlogger.Debugf("Still waiting for the Kubernetes API: %v", err)
 				previousErrorSuffix = errorSuffix
 				silenceRemaining = logDownsample
 			} else if silenceRemaining == 0 {
-				logrus.Debugf("Still waiting for the Kubernetes API: %v", err)
+				stdlogger.Debugf("Still waiting for the Kubernetes API: %v", err)
 				silenceRemaining = logDownsample
 			}
 		}
@@ -413,7 +413,7 @@ func waitForBootstrapConfigMap(ctx context.Context, client *kubernetes.Clientset
 	}
 
 	untilTime := time.Now().Add(timeout)
-	logrus.Infof("Waiting up to %v (until %v) for bootstrapping to complete...",
+	stdlogger.Infof("Waiting up to %v (until %v) for bootstrapping to complete...",
 		timeout, untilTime.Format(time.Kitchen))
 
 	waitCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -432,15 +432,15 @@ func waitForBootstrapConfigMap(ctx context.Context, client *kubernetes.Clientset
 			}
 			cm, ok := event.Object.(*corev1.ConfigMap)
 			if !ok {
-				logrus.Warnf("Expected a core/v1.ConfigMap object but got a %q object instead", event.Object.GetObjectKind().GroupVersionKind())
+				stdlogger.Warnf("Expected a core/v1.ConfigMap object but got a %q object instead", event.Object.GetObjectKind().GroupVersionKind())
 				return false, nil
 			}
 			status, ok := cm.Data["status"]
 			if !ok {
-				logrus.Debugf("No status found in bootstrap configmap")
+				stdlogger.Debugf("No status found in bootstrap configmap")
 				return false, nil
 			}
-			logrus.Debugf("Bootstrap status: %v", status)
+			stdlogger.Debugf("Bootstrap status: %v", status)
 			return status == "complete", nil
 		},
 	)
@@ -466,7 +466,7 @@ func waitForInitializedCluster(ctx context.Context, config *rest.Config) error {
 	}
 
 	untilTime := time.Now().Add(timeout)
-	logrus.Infof("Waiting up to %v (until %v) for the cluster at %s to initialize...",
+	stdlogger.Infof("Waiting up to %v (until %v) for the cluster at %s to initialize...",
 		timeout, untilTime.Format(time.Kitchen), config.Host)
 	cc, err := configclient.NewForConfig(config)
 	if err != nil {
@@ -488,7 +488,7 @@ func waitForInitializedCluster(ctx context.Context, config *rest.Config) error {
 			case watch.Added, watch.Modified:
 				cv, ok := event.Object.(*configv1.ClusterVersion)
 				if !ok {
-					logrus.Warnf("Expected a ClusterVersion object but got a %q object instead", event.Object.GetObjectKind().GroupVersionKind())
+					stdlogger.Warnf("Expected a ClusterVersion object but got a %q object instead", event.Object.GetObjectKind().GroupVersionKind())
 					return false, nil
 				}
 				if cov1helpers.IsStatusConditionTrue(cv.Status.Conditions, configv1.OperatorAvailable) &&
@@ -502,16 +502,16 @@ func waitForInitializedCluster(ctx context.Context, config *rest.Config) error {
 				} else if cov1helpers.IsStatusConditionTrue(cv.Status.Conditions, configv1.OperatorProgressing) {
 					lastError = cov1helpers.FindStatusCondition(cv.Status.Conditions, configv1.OperatorProgressing).Message
 				}
-				logrus.Debugf("Still waiting for the cluster to initialize: %s", lastError)
+				stdlogger.Debugf("Still waiting for the cluster to initialize: %s", lastError)
 				return false, nil
 			}
-			logrus.Debug("Still waiting for the cluster to initialize...")
+			stdlogger.Debug("Still waiting for the cluster to initialize...")
 			return false, nil
 		},
 	)
 
 	if err == nil {
-		logrus.Debug("Cluster is initialized")
+		stdlogger.Debug("Cluster is initialized")
 		return nil
 	}
 
@@ -539,7 +539,7 @@ func waitForConsole(ctx context.Context, config *rest.Config) (string, error) {
 
 	consoleRouteTimeout := 10 * time.Minute
 	untilTime := time.Now().Add(consoleRouteTimeout)
-	logrus.Infof("Waiting up to %v (until %v) for the openshift-console route to be created...",
+	stdlogger.Infof("Waiting up to %v (until %v) for the openshift-console route to be created...",
 		consoleRouteTimeout, untilTime.Format(time.Kitchen))
 
 	consoleRouteContext, cancel := context.WithTimeout(ctx, consoleRouteTimeout)
@@ -553,10 +553,10 @@ func waitForConsole(ctx context.Context, config *rest.Config) (string, error) {
 	wait.Until(func() {
 		route, err := rc.RouteV1().Routes(consoleNamespace).Get(ctx, consoleRouteName, metav1.GetOptions{})
 		if err == nil {
-			logrus.Debugf("Route found in openshift-console namespace: %s", consoleRouteName)
+			stdlogger.Debugf("Route found in openshift-console namespace: %s", consoleRouteName)
 			if uri, _, err2 := routeapihelpers.IngressURI(route, ""); err2 == nil {
 				url = uri.String()
-				logrus.Debug("OpenShift console route is admitted")
+				stdlogger.Debug("OpenShift console route is admitted")
 				cancel()
 			} else {
 				err = err2
@@ -565,7 +565,7 @@ func waitForConsole(ctx context.Context, config *rest.Config) (string, error) {
 		if err != nil {
 			silenceRemaining--
 			if silenceRemaining == 0 {
-				logrus.Debugf("Still waiting for the console route: %v", err)
+				stdlogger.Debugf("Still waiting for the console route: %v", err)
 				silenceRemaining = logDownsample
 			}
 		}
@@ -593,10 +593,10 @@ func logComplete(directory, consoleURL string) error {
 	if err != nil {
 		return err
 	}
-	logrus.Info("Install complete!")
-	logrus.Infof("To access the cluster as the system:admin user when using 'oc', run\n    export KUBECONFIG=%s", kubeconfig)
-	logrus.Infof("Access the OpenShift web-console here: %s", consoleURL)
-	logrus.Infof("Login to the console with user: %q, and password: %q", "kubeadmin", pw)
+	stdlogger.Info("Install complete!")
+	stdlogger.Infof("To access the cluster as the system:admin user when using 'oc', run\n    export KUBECONFIG=%s", kubeconfig)
+	stdlogger.Infof("Access the OpenShift web-console here: %s", consoleURL)
+	stdlogger.Infof("Login to the console with user: %q, and password: %q", "kubeadmin", pw)
 	return nil
 }
 
@@ -618,7 +618,7 @@ func waitForInstallComplete(ctx context.Context, config *rest.Config, directory 
 }
 
 func logTroubleshootingLink() {
-	logrus.Error(`Cluster initialization failed because one or more operators are not functioning properly.
+	stdlogger.Error(`Cluster initialization failed because one or more operators are not functioning properly.
 The cluster should be accessible for troubleshooting as detailed in the documentation linked below,
 https://docs.openshift.com/container-platform/latest/support/troubleshooting/troubleshooting-installations.html
 The 'wait-for install-complete' subcommand can then be used to continue the installation`)

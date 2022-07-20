@@ -12,8 +12,8 @@ import (
 	azureenv "github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types/azure"
 )
 
@@ -85,12 +85,12 @@ func credentialsFromFileOrUser(cloudEnv *azureenv.Environment) (*Credentials, er
 	os.Setenv(azureAuthEnv, authFilePath)
 	_, err := auth.NewAuthorizerFromFileWithResource(cloudEnv.ResourceManagerEndpoint)
 	if err != nil {
-		logrus.Debug("Could not get an azure authorizer from file. Asking user to provide authentication info")
+		stdlogger.Debug("Could not get an azure authorizer from file. Asking user to provide authentication info")
 		credentials, err := askForCredentials()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to retrieve credentials from user")
 		}
-		logrus.Infof("Saving user credentials to %q", authFilePath)
+		stdlogger.Infof("Saving user credentials to %q", authFilePath)
 		if err = saveCredentials(*credentials, authFilePath); err != nil {
 			return nil, errors.Wrap(err, "failed to save credentials")
 		}
@@ -111,7 +111,7 @@ func credentialsFromFileOrUser(cloudEnv *azureenv.Environment) (*Credentials, er
 		onceLoggers[authFilePath] = new(sync.Once)
 	}
 	onceLoggers[authFilePath].Do(func() {
-		logrus.Infof("Credentials loaded from file %q", authFilePath)
+		stdlogger.Infof("Credentials loaded from file %q", authFilePath)
 	})
 
 	return credentials, nil

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -33,7 +34,7 @@ func readFile(pathFile string) ([]byte, error) {
 func (c *clientHTTP) addTrustBundle(pemContent string, engineConfig *Config) error {
 	c.certPool, _ = x509.SystemCertPool()
 	if c.certPool == nil {
-		logrus.Debug("failed to load cert pool.... Creating new cert pool")
+		stdlogger.Debug("failed to load cert pool.... Creating new cert pool")
 		c.certPool = x509.NewCertPool()
 	}
 
@@ -41,7 +42,7 @@ func (c *clientHTTP) addTrustBundle(pemContent string, engineConfig *Config) err
 		if !c.certPool.AppendCertsFromPEM([]byte(pemContent)) {
 			return errors.New("unable to load certificate")
 		}
-		logrus.Debugf("loaded %s into the system pool: ", engineConfig.CAFile)
+		stdlogger.Debugf("loaded %s into the system pool: ", engineConfig.CAFile)
 		engineConfig.CABundle = strings.TrimSpace(string(pemContent))
 	}
 	return nil
@@ -89,7 +90,7 @@ func (c *clientHTTP) downloadFile() error {
 // avoid cert validation. In case of failure, returns error.
 func (c *clientHTTP) checkURLResponse() error {
 
-	logrus.Debugf("checking URL response... urlAddr: %s skipVerify: %s", c.urlAddr, strconv.FormatBool(c.skipVerify))
+	stdlogger.Debugf("checking URL response... urlAddr: %s skipVerify: %s", c.urlAddr, strconv.FormatBool(c.skipVerify))
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
@@ -171,7 +172,7 @@ func askQuestionTrueOrFalse(question string, helpMessage string) (bool, error) {
 // askCredentials will handle username and password for connecting with Engine
 func askCredentials(c Config) (Config, error) {
 	loginAttempts := 3
-	logrus.Debugf("login attempts available: %d", loginAttempts)
+	stdlogger.Debugf("login attempts available: %d", loginAttempts)
 	for loginAttempts > 0 {
 		err := askUsername(&c)
 		if err != nil {
@@ -181,7 +182,7 @@ func askCredentials(c Config) (Config, error) {
 		err = askPassword(&c)
 		if err != nil {
 			loginAttempts = loginAttempts - 1
-			logrus.Debugf("login attempts now: %d", loginAttempts)
+			stdlogger.Debugf("login attempts now: %d", loginAttempts)
 			if loginAttempts == 0 {
 				return c, err
 			}
@@ -211,20 +212,20 @@ func showPEM(pemFilePath string) error {
 
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		logrus.Debugf("Failed to read the cert: %s", err)
+		stdlogger.Debugf("Failed to read the cert: %s", err)
 		return errors.Wrapf(err, "failed to read the cert: %s", pemFilePath)
 	}
 
-	logrus.Info("Loaded the following PEM file:")
+	stdlogger.Info("Loaded the following PEM file:")
 
-	logrus.Info("\tVersion: ", cert.Version)
-	logrus.Info("\tSignature Algorithm: ", cert.SignatureAlgorithm.String())
-	logrus.Info("\tSerial Number: ", cert.SerialNumber)
-	logrus.Info("\tIssuer: ", cert.Issuer.String())
-	logrus.Info("\tValidity:")
-	logrus.Info("\t\tNot Before: ", cert.NotBefore)
-	logrus.Info("\t\tNot After: ", cert.NotAfter)
-	logrus.Info("\tSubject: ", cert.Subject.ToRDNSequence())
+	stdlogger.Info("\tVersion: ", cert.Version)
+	stdlogger.Info("\tSignature Algorithm: ", cert.SignatureAlgorithm.String())
+	stdlogger.Info("\tSerial Number: ", cert.SerialNumber)
+	stdlogger.Info("\tIssuer: ", cert.Issuer.String())
+	stdlogger.Info("\tValidity:")
+	stdlogger.Info("\t\tNot Before: ", cert.NotBefore)
+	stdlogger.Info("\t\tNot After: ", cert.NotAfter)
+	stdlogger.Info("\tSubject: ", cert.Subject.ToRDNSequence())
 
 	return nil
 
@@ -267,14 +268,14 @@ func engineSetup() (Config, error) {
 	if err != nil {
 		return engineConfig, err
 	}
-	logrus.Debug("engine FQDN: ", engineConfig.FQDN)
+	stdlogger.Debug("engine FQDN: ", engineConfig.FQDN)
 
 	// By default, we set Insecure true
 	engineConfig.Insecure = true
 
 	// Set c.URL with the API endpoint
 	engineConfig.URL = fmt.Sprintf("https://%s/ovirt-engine/api", engineConfig.FQDN)
-	logrus.Debug("Engine URL: ", engineConfig.URL)
+	stdlogger.Debug("Engine URL: ", engineConfig.URL)
 
 	// Start creating clientHTTP struct for checking if Engine FQDN is responding
 	httpResource.skipVerify = true
@@ -288,7 +289,7 @@ func engineSetup() (Config, error) {
 	engineConfig.PemURL = fmt.Sprintf(
 		"https://%s/ovirt-engine/services/pki-resource?resource=ca-certificate&format=X509-PEM-CA",
 		engineConfig.FQDN)
-	logrus.Debug("PEM URL: ", engineConfig.PemURL)
+	stdlogger.Debug("PEM URL: ", engineConfig.PemURL)
 
 	// Create tmpFile to store the Engine PEM file
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "engine-")
@@ -361,7 +362,7 @@ func engineSetup() (Config, error) {
 	}
 
 	if engineConfig.Insecure {
-		logrus.Error(
+		stdlogger.Error(
 			"****************************************************************************\n",
 			"* Could not configure secure communication to the oVirt engine.            *\n",
 			"* As of 4.7 insecure mode for oVirt is no longer supported in the          *\n",

@@ -22,9 +22,9 @@ import (
 	imageutils "github.com/gophercloud/utils/openstack/imageservice/v2/images"
 	networkutils "github.com/gophercloud/utils/openstack/networking/v2/networks"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	"github.com/openshift/installer/pkg/quota"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	openstackdefaults "github.com/openshift/installer/pkg/types/openstack/defaults"
 	"github.com/openshift/installer/pkg/types/openstack/validation/networkextensions"
@@ -106,7 +106,7 @@ func GetCloudInfo(ic *types.InstallConfig) (*CloudInfo, error) {
 
 	err = ci.collectInfo(ic, opts)
 	if err != nil {
-		logrus.Warnf("Failed to generate OpenStack cloud info: %v", err)
+		stdlogger.Warnf("Failed to generate OpenStack cloud info: %v", err)
 		return nil, nil
 	}
 
@@ -210,9 +210,9 @@ func (ci *CloudInfo) collectInfo(ic *types.InstallConfig, opts *clientconfig.Cli
 	ci.Quotas, err = loadQuotas(ci)
 	if err != nil {
 		if isUnauthorized(err) {
-			logrus.Warnf("Missing permissions to fetch Quotas and therefore will skip checking them: %v", err)
+			stdlogger.Warnf("Missing permissions to fetch Quotas and therefore will skip checking them: %v", err)
 		} else if isNotFoundError(err) {
-			logrus.Warnf("Quota API is not available and therefore will skip checking them: %v", err)
+			stdlogger.Warnf("Quota API is not available and therefore will skip checking them: %v", err)
 		} else {
 			return errors.Wrap(err, "failed to load Quota")
 		}

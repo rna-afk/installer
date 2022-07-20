@@ -11,8 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/route53"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // IsForbidden returns true if and only if the input error is an HTTP
@@ -30,7 +30,7 @@ func GetBaseDomain() (string, error) {
 		return "", err
 	}
 
-	logrus.Debugf("listing AWS hosted zones")
+	stdlogger.Debugf("listing AWS hosted zones")
 	client := route53.New(session)
 	publicZoneMap := map[string]struct{}{}
 	exists := struct{}{}

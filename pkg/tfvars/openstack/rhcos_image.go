@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	openstackdefaults "github.com/openshift/installer/pkg/types/openstack/defaults"
 )
 
@@ -52,7 +53,7 @@ func uploadBaseImage(cloud string, localFilePath string, imageName string, clust
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("Image %s was created.", img.Name)
+	stdlogger.Debugf("Image %s was created.", img.Name)
 
 	// FIXME(mfedosin): We have to temporary disable image import, because it looks
 	// like there are problems on the server side.
@@ -65,14 +66,14 @@ func uploadBaseImage(cloud string, localFilePath string, imageName string, clust
 	useImageImport := false
 
 	if useImageImport {
-		logrus.Debugf("Using Image Import API to upload RHCOS to the image %q with ID %q", img.Name, img.ID)
+		stdlogger.Debugf("Using Image Import API to upload RHCOS to the image %q with ID %q", img.Name, img.ID)
 		stageRes := imagedata.Stage(conn, img.ID, f)
 		if stageRes.Err != nil {
 			return err
 		}
-		logrus.Debugf("The data was uploaded.")
+		stdlogger.Debugf("The data was uploaded.")
 
-		logrus.Debugf("Begin image import for the image %q with ID %q", img.Name, img.ID)
+		stdlogger.Debugf("Begin image import for the image %q with ID %q", img.Name, img.ID)
 		co := imageimport.CreateOpts{
 			Name: imageimport.GlanceDirectMethod,
 		}
@@ -80,7 +81,7 @@ func uploadBaseImage(cloud string, localFilePath string, imageName string, clust
 		if importRes.Err != nil {
 			return err
 		}
-		logrus.Debugf("Image import started.")
+		stdlogger.Debugf("Image import started.")
 
 		// Image import is an asynchronous operation, so we have to wait until the image becomes "active"
 		const numRetries = 5000
@@ -103,15 +104,15 @@ func uploadBaseImage(cloud string, localFilePath string, imageName string, clust
 			time.Sleep(timeSleepSeconds * time.Second)
 		}
 
-		logrus.Debugf("Image import finished.")
+		stdlogger.Debugf("Image import finished.")
 	} else {
 		// Use classic legacy upload that doesn't support image conversion
-		logrus.Debugf("Using legacy API to upload RHCOS to the image %q with ID %q", img.Name, img.ID)
+		stdlogger.Debugf("Using legacy API to upload RHCOS to the image %q with ID %q", img.Name, img.ID)
 		res := imagedata.Upload(conn, img.ID, f)
 		if res.Err != nil {
 			return err
 		}
-		logrus.Debugf("The data was uploaded.")
+		stdlogger.Debugf("The data was uploaded.")
 	}
 
 	return nil

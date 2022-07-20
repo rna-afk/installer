@@ -14,11 +14,11 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/metal3-io/baremetal-operator/pkg/hardwareutils/bmc"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/openshift/installer/pkg/ipnet"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/baremetal"
 	"github.com/openshift/installer/pkg/validate"
@@ -306,7 +306,7 @@ func validateHostsCount(hosts []*baremetal.Host, installConfig *types.InstallCon
 		} else if h.IsWorker() {
 			numWorkers++
 		} else {
-			logrus.Warn(fmt.Sprintf("Host %s hasn't any role configured", h.Name))
+			stdlogger.Warn(fmt.Sprintf("Host %s hasn't any role configured", h.Name))
 			if numMasters < numRequiredMasters {
 				numMasters++
 			} else if numWorkers < numRequiredWorkers {

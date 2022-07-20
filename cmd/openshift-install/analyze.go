@@ -4,10 +4,10 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/openshift/installer/pkg/gather/service"
+	"github.com/openshift/installer/pkg/stdlogger"
 )
 
 var (
@@ -30,14 +30,14 @@ This command helps users to analyze the reasons for an installation that failed 
 				var err error
 				gatherBundle, err = getGatherBundleFromAssetsDirectory()
 				if err != nil {
-					logrus.Fatal(err)
+					stdlogger.Fatal(err)
 				}
 			}
 			if !filepath.IsAbs(gatherBundle) {
 				gatherBundle = filepath.Join(rootOpts.dir, gatherBundle)
 			}
 			if err := service.AnalyzeGatherBundle(gatherBundle); err != nil {
-				logrus.Fatal(err)
+				stdlogger.Fatal(err)
 			}
 		},
 	}

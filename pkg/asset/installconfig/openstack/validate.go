@@ -6,17 +6,17 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/openshift/installer/pkg/asset/installconfig/openstack/validation"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/openstack"
 	openstackdefaults "github.com/openshift/installer/pkg/types/openstack/defaults"
 	"github.com/openshift/installer/pkg/types/openstack/validation/networkextensions"
-	"github.com/sirupsen/logrus"
 )
 
 // Validate validates the given installconfig for OpenStack platform
 func Validate(ic *types.InstallConfig) error {
 	if skip := os.Getenv("OPENSHIFT_INSTALL_SKIP_PREFLIGHT_VALIDATIONS"); skip == "1" {
-		logrus.Warnf("OVERRIDE: pre-flight validation disabled.")
+		stdlogger.Warnf("OVERRIDE: pre-flight validation disabled.")
 		return nil
 	}
 
@@ -25,7 +25,7 @@ func Validate(ic *types.InstallConfig) error {
 		return err
 	}
 	if ci == nil {
-		logrus.Warnf("Empty OpenStack cloud info and therefore will skip pre-flight validation.")
+		stdlogger.Warnf("Empty OpenStack cloud info and therefore will skip pre-flight validation.")
 		return nil
 	}
 

@@ -9,13 +9,13 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/openshift/installer/pkg/asset"
 	"github.com/openshift/installer/pkg/asset/installconfig"
+	"github.com/openshift/installer/pkg/stdlogger"
 )
 
 var (
@@ -116,9 +116,9 @@ func parseCertificates(certificates string) (map[string]string, error) {
 		}
 
 		if cert.Version < 3 {
-			logrus.Warnf("Certificate %X from additionalTrustBundle is x509 v%d", cert.SerialNumber, cert.Version)
+			stdlogger.Warnf("Certificate %X from additionalTrustBundle is x509 v%d", cert.SerialNumber, cert.Version)
 		} else if !cert.IsCA {
-			logrus.Warnf("Certificate %X from additionalTrustBundle is x509 v%d but not a certificate authority", cert.SerialNumber, cert.Version)
+			stdlogger.Warnf("Certificate %X from additionalTrustBundle is x509 v%d but not a certificate authority", cert.SerialNumber, cert.Version)
 		}
 
 		sb.WriteString(string(pem.EncodeToMemory(block)))

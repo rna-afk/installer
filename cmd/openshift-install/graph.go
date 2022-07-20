@@ -8,10 +8,10 @@ import (
 	"regexp"
 
 	"github.com/awalterschulze/gographviz"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/openshift/installer/pkg/asset"
+	"github.com/openshift/installer/pkg/stdlogger"
 )
 
 var (
@@ -82,11 +82,11 @@ func addEdge(g *gographviz.Graph, parent string, asset asset.Asset) {
 	name := fmt.Sprintf("%q", reflect.TypeOf(asset).Elem())
 
 	if !g.IsNode(name) {
-		logrus.Debugf("adding node %s", name)
+		stdlogger.Debugf("adding node %s", name)
 		g.AddNode("G", name, nil)
 	}
 	if !isEdge(g, name, parent) {
-		logrus.Debugf("adding edge %s -> %s", name, parent)
+		stdlogger.Debugf("adding edge %s -> %s", name, parent)
 		g.AddEdge(name, parent, true, nil)
 	}
 

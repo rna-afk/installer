@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/version"
 )
 
@@ -75,12 +76,12 @@ func (h *fileHook) Fire(entry *logrus.Entry) error {
 
 func setupFileHook(baseDir string) func() {
 	if err := os.MkdirAll(baseDir, 0755); err != nil {
-		logrus.Fatal(errors.Wrap(err, "failed to create base directory for logs"))
+		stdlogger.Fatal(errors.Wrap(err, "failed to create base directory for logs"))
 	}
 
 	logfile, err := os.OpenFile(filepath.Join(baseDir, ".openshift_install.log"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
-		logrus.Fatal(errors.Wrap(err, "failed to open log file"))
+		stdlogger.Fatal(errors.Wrap(err, "failed to open log file"))
 	}
 
 	originalHooks := logrus.LevelHooks{}
@@ -96,11 +97,11 @@ func setupFileHook(baseDir string) func() {
 
 	versionString, err := version.String()
 	if err != nil {
-		logrus.Fatal(err)
+		stdlogger.Fatal(err)
 	}
-	logrus.Debugf(versionString)
+	stdlogger.Debugf(versionString)
 	if version.Commit != "" {
-		logrus.Debugf("Built from commit %s", version.Commit)
+		stdlogger.Debugf("Built from commit %s", version.Commit)
 	}
 
 	return func() {

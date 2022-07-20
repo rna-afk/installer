@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -69,7 +69,7 @@ func PersistToFile(asset WritableAsset, directory string) error {
 // DeleteAssetFromDisk removes all the files for asset from disk.
 // this is function is not safe for calling concurrently on the same directory.
 func DeleteAssetFromDisk(asset WritableAsset, directory string) error {
-	logrus.Debugf("Purging asset %q from disk", asset.Name())
+	stdlogger.Debugf("Purging asset %q from disk", asset.Name())
 	for _, f := range asset.Files() {
 		path := filepath.Join(directory, f.Filename)
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {

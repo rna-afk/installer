@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types/powervs"
 	"github.com/pkg/errors"
 
@@ -25,8 +26,6 @@ import (
 	"github.com/IBM-Cloud/power-go-client/ibmpisession"
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/form3tech-oss/jwt-go"
-
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -106,14 +105,14 @@ func NewBxClient() (*BxClient, error) {
 
 	var pisv PISessionVars
 	// Grab variables from the installer written authFilePath
-	logrus.Debug("Gathering variables from AuthFile")
+	stdlogger.Debug("Gathering variables from AuthFile")
 	err := getPISessionVarsFromAuthFile(&pisv)
 	if err != nil {
 		return nil, err
 	}
 
 	// Grab variables from the users environment
-	logrus.Debug("Gathering variables from user environment")
+	stdlogger.Debug("Gathering variables from user environment")
 	err = getPISessionVarsFromEnv(&pisv)
 	if err != nil {
 		return nil, err
@@ -245,7 +244,7 @@ func (c *BxClient) NewPISession() error {
 	var pisv PISessionVars
 
 	// Grab variables from the installer written authFilePath
-	logrus.Debug("Gathering variables from AuthFile")
+	stdlogger.Debug("Gathering variables from AuthFile")
 	err := getPISessionVarsFromAuthFile(&pisv)
 	if err != nil {
 		return err

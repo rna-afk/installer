@@ -4,12 +4,12 @@ package openstack
 import (
 	"sync"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	openstackdefaults "github.com/openshift/installer/pkg/types/openstack/defaults"
 	"github.com/pkg/errors"
 
 	"github.com/ghodss/yaml"
 	"github.com/gophercloud/utils/openstack/clientconfig"
-	"github.com/sirupsen/logrus"
 )
 
 var onceLoggers = map[string]*sync.Once{}
@@ -91,7 +91,7 @@ func loadAndLog(fn func() (string, []byte, error)) ([]byte, error) {
 		onceLoggers[filename] = new(sync.Once)
 	}
 	onceLoggers[filename].Do(func() {
-		logrus.Infof("Credentials loaded from file %q", filename)
+		stdlogger.Infof("Credentials loaded from file %q", filename)
 	})
 
 	return content, nil

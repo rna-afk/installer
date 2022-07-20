@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -74,7 +74,7 @@ func (p Provider) Extract(dir string) error {
 	destProviderDir := filepath.Join(dir, providerDir)
 	destDir := destProviderDir
 	srcDir := filepath.Join("mirror", providerDir)
-	logrus.Debugf("creating %s directory", destDir)
+	stdlogger.Debugf("creating %s directory", destDir)
 	if err := os.MkdirAll(destDir, 0777); err != nil {
 		return errors.Wrapf(err, "could not make directory for the %s provider", p.Name)
 	}
@@ -93,7 +93,7 @@ func unpack(srcDir, destDir string) error {
 		if entry.IsDir() {
 			childSrcDir := filepath.Join(srcDir, entry.Name())
 			childDestDir := filepath.Join(destDir, entry.Name())
-			logrus.Debugf("creating %s directory", childDestDir)
+			stdlogger.Debugf("creating %s directory", childDestDir)
 			if err := os.Mkdir(childDestDir, 0777); err != nil {
 				return err
 			}
@@ -102,7 +102,7 @@ func unpack(srcDir, destDir string) error {
 			}
 			continue
 		}
-		logrus.Debugf("creating %s file", filepath.Join(destDir, entry.Name()))
+		stdlogger.Debugf("creating %s file", filepath.Join(destDir, entry.Name()))
 		if err := unpackFile(filepath.Join(srcDir, entry.Name()), filepath.Join(destDir, entry.Name())); err != nil {
 			return err
 		}

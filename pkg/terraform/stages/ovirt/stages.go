@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/terraform/providers"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	"github.com/openshift/installer/pkg/asset/installconfig/ovirt"
 	"github.com/openshift/installer/pkg/terraform"
@@ -104,7 +104,7 @@ func checkPortIsOpen(host string, port string) bool {
 	timeout := time.Second
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), timeout)
 	if err != nil {
-		logrus.Debugf("connection error: %v", err)
+		stdlogger.Debugf("connection error: %v", err)
 		return false
 	}
 	if conn != nil {
@@ -151,7 +151,7 @@ func findVirtualMachineIP(instanceID string, client *ovirtsdk4.Connection) (stri
 				ipres, hasAddress := ip.Address()
 				if hasAddress {
 					if checkPortIsOpen(ipres, bootstrapSSHPortAsString) {
-						logrus.Debugf("ovirt vm id: %s , found usable IP Address: %s", instanceID, ipres)
+						stdlogger.Debugf("ovirt vm id: %s , found usable IP Address: %s", instanceID, ipres)
 						return ipres, nil
 					}
 				}

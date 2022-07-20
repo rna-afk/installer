@@ -27,6 +27,7 @@ import (
 	_ "github.com/openshift/installer/pkg/gather/aws"
 	"github.com/openshift/installer/pkg/gather/service"
 	"github.com/openshift/installer/pkg/gather/ssh"
+	"github.com/openshift/installer/pkg/stdlogger"
 	platformstages "github.com/openshift/installer/pkg/terraform/stages/platform"
 )
 
@@ -64,16 +65,16 @@ func newGatherBootstrapCmd() *cobra.Command {
 			defer cleanup()
 			bundlePath, err := runGatherBootstrapCmd(rootOpts.dir)
 			if err != nil {
-				logrus.Fatal(err)
+				stdlogger.Fatal(err)
 			}
 
 			if !gatherBootstrapOpts.skipAnalysis {
 				if err := service.AnalyzeGatherBundle(bundlePath); err != nil {
-					logrus.Fatal(err)
+					stdlogger.Fatal(err)
 				}
 			}
 
-			logrus.Infof("Bootstrap gather logs captured here %q", bundlePath)
+			stdlogger.Infof("Bootstrap gather logs captured here %q", bundlePath)
 		},
 	}
 	cmd.PersistentFlags().StringVar(&gatherBootstrapOpts.bootstrap, "bootstrap", "", "Hostname or IP of the bootstrap host")
@@ -152,15 +153,15 @@ func gatherBootstrap(bootstrap string, port int, masters []string, directory str
 
 	consoleGather, err := serialgather.New(logrus.StandardLogger(), serialLogBundlePath, bootstrap, masters, directory)
 	if err != nil {
-		logrus.Infof("Skipping VM console logs gather: %s", err.Error())
+		stdlogger.Infof("Skipping VM console logs gather: %s", err.Error())
 	} else {
-		logrus.Info("Pulling VM console logs")
+		stdlogger.Info("Pulling VM console logs")
 		if err := consoleGather.Run(); err != nil {
-			logrus.Infof("Failed to gather VM console logs: %s", err.Error())
+			stdlogger.Infof("Failed to gather VM console logs: %s", err.Error())
 		}
 	}
 
-	logrus.Info("Pulling debug logs from the bootstrap machine")
+	stdlogger.Info("Pulling debug logs from the bootstrap machine")
 	client, err := ssh.NewClient("core", net.JoinHostPort(bootstrap, strconv.Itoa(port)), gatherBootstrapOpts.sshKeys)
 	if err != nil {
 		if errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, syscall.ETIMEDOUT) {
@@ -214,9 +215,9 @@ func logClusterOperatorConditions(ctx context.Context, config *rest.Config) erro
 				continue
 			}
 			if condition.Type == configv1.OperatorAvailable || condition.Type == configv1.OperatorDegraded {
-				logrus.Errorf("Cluster operator %s %s is %s with %s: %s", operator.ObjectMeta.Name, condition.Type, condition.Status, condition.Reason, condition.Message)
+				stdlogger.Errorf("Cluster operator %s %s is %s with %s: %s", operator.ObjectMeta.Name, condition.Type, condition.Status, condition.Reason, condition.Message)
 			} else {
-				logrus.Infof("Cluster operator %s %s is %s with %s: %s", operator.ObjectMeta.Name, condition.Type, condition.Status, condition.Reason, condition.Message)
+				stdlogger.Infof("Cluster operator %s %s is %s with %s: %s", operator.ObjectMeta.Name, condition.Type, condition.Status, condition.Reason, condition.Message)
 			}
 		}
 	}

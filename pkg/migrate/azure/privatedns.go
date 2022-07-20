@@ -9,12 +9,11 @@ import (
 
 	"github.com/Azure/go-autorest/autorest/to"
 
-	"github.com/sirupsen/logrus"
-
 	aznetwork "github.com/Azure/azure-sdk-for-go/services/network/mgmt/2018-12-01/network"
 	azdns "github.com/Azure/azure-sdk-for-go/services/preview/dns/mgmt/2018-03-01-preview/dns"
 	azprivatedns "github.com/Azure/azure-sdk-for-go/services/privatedns/mgmt/2018-09-01/privatedns"
 	azconfig "github.com/openshift/installer/pkg/asset/installconfig/azure"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types/azure"
 )
 
@@ -398,7 +397,7 @@ func (client *privateDNSClient) migrateLegacyZone(legacyDNSZone *legacyDNSZone, 
 	defer cancel()
 
 	// Create/Update the Zone
-	logrus.Infof("zone: %s ... ", *privateZone.Name)
+	stdlogger.Infof("zone: %s ... ", *privateZone.Name)
 	zoneFuture, err := client.zonesClient.CreateOrUpdate(ctx, client.resourceGroup, *privateZone.Name, privateZone, "", "")
 	if err != nil {
 		return err
@@ -415,7 +414,7 @@ func (client *privateDNSClient) migrateLegacyZone(legacyDNSZone *legacyDNSZone, 
 	if err != nil {
 		return err
 	}
-	logrus.Info("ok.")
+	stdlogger.Info("ok.")
 
 	for _, recordSet := range privateRecordSets {
 		recordType := azprivatedns.RecordType(strings.TrimPrefix(*recordSet.Type, "Microsoft.Network/privateDnsZones/"))
@@ -423,7 +422,7 @@ func (client *privateDNSClient) migrateLegacyZone(legacyDNSZone *legacyDNSZone, 
 		recordSet.Type = nil
 
 		// Create/Update the record
-		logrus.Infof("record: %s %s ... ", recordType, relativeRecordSetName)
+		stdlogger.Infof("record: %s %s ... ", recordType, relativeRecordSetName)
 		_, err := client.recordsetsClient.CreateOrUpdate(ctx, client.resourceGroup, *privateZone.Name, recordType, relativeRecordSetName, *recordSet, "", "")
 		if err != nil {
 			return err
@@ -434,7 +433,7 @@ func (client *privateDNSClient) migrateLegacyZone(legacyDNSZone *legacyDNSZone, 
 		if err != nil {
 			return err
 		}
-		logrus.Info("ok.")
+		stdlogger.Info("ok.")
 	}
 
 	// Do we link, or not?
@@ -461,7 +460,7 @@ func (client *privateDNSClient) migrateLegacyZone(legacyDNSZone *legacyDNSZone, 
 	}
 
 	// Create the virtual network link to DNS
-	logrus.Infof("link: %s ... ", virtualNetworkLinkName)
+	stdlogger.Infof("link: %s ... ", virtualNetworkLinkName)
 	linkFuture, err := client.virtualNetworkLinksClient.CreateOrUpdate(ctx, client.resourceGroup, *privateZone.Name, virtualNetworkLinkName, virtualNetworkLink, "", "")
 	if err != nil {
 		return err
@@ -477,7 +476,7 @@ func (client *privateDNSClient) migrateLegacyZone(legacyDNSZone *legacyDNSZone, 
 	if err != nil {
 		return err
 	}
-	logrus.Info("ok.")
+	stdlogger.Info("ok.")
 
 	return nil
 }
@@ -521,7 +520,7 @@ func Eligible(cloudName azure.CloudEnvironment) error {
 	}
 
 	for _, zone := range zones {
-		logrus.Infof("legacy zone=%s resourceGroup=%s", *zone.Name, idToResourceGroup(*zone.ID))
+		stdlogger.Infof("legacy zone=%s resourceGroup=%s", *zone.Name, idToResourceGroup(*zone.ID))
 	}
 
 	return nil

@@ -8,8 +8,8 @@ import (
 	"github.com/AlecAivazis/survey/v2/core"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types/ovirt"
 )
 
@@ -27,14 +27,14 @@ func askCluster(c *ovirtsdk4.Connection, p *ovirt.Platform) (string, error) {
 	datacenters := dcResp.MustDataCenters()
 	for _, dc := range datacenters.Slice() {
 		dcService := systemService.DataCentersService().DataCenterService(dc.MustId())
-		logrus.Debug("Datacenter:", dc.MustName())
+		stdlogger.Debug("Datacenter:", dc.MustName())
 		clusters, err := dcService.ClustersService().List().Send()
 		if err != nil {
 			return "", errors.Wrap(err, "failed to list clusters")
 		}
 		clusterSlice := clusters.MustClusters()
 		for _, cluster := range clusterSlice.Slice() {
-			logrus.Debug("\tcluster:", cluster.MustName())
+			stdlogger.Debug("\tcluster:", cluster.MustName())
 			clusterByNames[cluster.MustName()] = cluster
 			clusterNames = append(clusterNames, cluster.MustName())
 		}

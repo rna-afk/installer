@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/coreos/stream-metadata-go/arch"
-	"github.com/sirupsen/logrus"
 
 	"github.com/openshift/installer/pkg/asset"
 	"github.com/openshift/installer/pkg/asset/installconfig"
 	"github.com/openshift/installer/pkg/rhcos"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/alibabacloud"
 	"github.com/openshift/installer/pkg/types/aws"
@@ -51,7 +51,7 @@ func (i *Image) Dependencies() []asset.Asset {
 // Generate the RHCOS image location.
 func (i *Image) Generate(p asset.Parents) error {
 	if oi, ok := os.LookupEnv("OPENSHIFT_INSTALL_OS_IMAGE_OVERRIDE"); ok && oi != "" {
-		logrus.Warn("Found override for OS Image. Please be warned, this is not advised")
+		stdlogger.Warn("Found override for OS Image. Please be warned, this is not advised")
 		*i = Image(oi)
 		return nil
 	}
@@ -89,7 +89,7 @@ func osImage(config *types.InstallConfig) (string, error) {
 		region := config.Platform.AWS.Region
 		if !rhcos.AMIRegions(config.ControlPlane.Architecture).Has(region) {
 			const globalResourceRegion = "us-east-1"
-			logrus.Debugf("No AMI found in %s. Using AMI from %s.", region, globalResourceRegion)
+			stdlogger.Debugf("No AMI found in %s. Using AMI from %s.", region, globalResourceRegion)
 			region = globalResourceRegion
 		}
 		osimage, err := st.GetAMI(archName, region)
@@ -173,7 +173,7 @@ func osImage(config *types.InstallConfig) (string, error) {
 		if streamArch.Images.PowerVS != nil {
 			vpcRegion := powervs.Regions[config.Platform.PowerVS.Region].VPCRegion
 			img := streamArch.Images.PowerVS.Regions[vpcRegion]
-			logrus.Debug("Power VS using image ", img.Object)
+			stdlogger.Debug("Power VS using image ", img.Object)
 			return fmt.Sprintf("%s/%s", img.Bucket, img.Object), nil
 		}
 

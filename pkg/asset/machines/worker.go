@@ -20,7 +20,6 @@ import (
 	ovirtprovider "github.com/openshift/cluster-api-provider-ovirt/pkg/apis/ovirtprovider/v1beta1"
 	mcfgv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -46,6 +45,7 @@ import (
 	"github.com/openshift/installer/pkg/asset/machines/vsphere"
 	"github.com/openshift/installer/pkg/asset/rhcos"
 	rhcosutils "github.com/openshift/installer/pkg/rhcos"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	alibabacloudtypes "github.com/openshift/installer/pkg/types/alibabacloud"
 	awstypes "github.com/openshift/installer/pkg/types/aws"
@@ -341,7 +341,7 @@ func (w *Worker) Generate(dependencies asset.Parents) error {
 			if mpool.InstanceType == "" {
 				mpool.InstanceType, err = aws.PreferredInstanceType(ctx, installConfig.AWS, awsDefaultMachineTypes(installConfig.Config.Platform.AWS.Region, installConfig.Config.ControlPlane.Architecture), mpool.Zones)
 				if err != nil {
-					logrus.Warn(errors.Wrap(err, "failed to find default instance type"))
+					stdlogger.Warn(errors.Wrap(err, "failed to find default instance type"))
 					mpool.InstanceType = awsDefaultMachineTypes(installConfig.Config.Platform.AWS.Region, installConfig.Config.ControlPlane.Architecture)[0]
 				}
 			}
@@ -349,7 +349,7 @@ func (w *Worker) Generate(dependencies asset.Parents) error {
 			if zoneDefaults {
 				mpool.Zones, err = aws.FilterZonesBasedOnInstanceType(ctx, installConfig.AWS, mpool.InstanceType, mpool.Zones)
 				if err != nil {
-					logrus.Warn(errors.Wrap(err, "failed to filter zone list"))
+					stdlogger.Warn(errors.Wrap(err, "failed to filter zone list"))
 				}
 			}
 

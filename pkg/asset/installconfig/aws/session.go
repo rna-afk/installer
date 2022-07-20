@@ -16,9 +16,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	ini "gopkg.in/ini.v1"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	typesaws "github.com/openshift/installer/pkg/types/aws"
 	"github.com/openshift/installer/pkg/version"
 )
@@ -108,11 +108,11 @@ func getCredentials(options session.Options) (*credentials.Credentials, error) {
 	switch credsValue.ProviderName {
 	case credentials.SharedCredsProviderName:
 		onceLoggers[credentials.SharedCredsProviderName].Do(func() {
-			logrus.Infof("Credentials loaded from the %q profile in file %q", sharedCredentialsProvider.Profile, sharedCredentialsProvider.Filename)
+			stdlogger.Infof("Credentials loaded from the %q profile in file %q", sharedCredentialsProvider.Profile, sharedCredentialsProvider.Filename)
 		})
 	case credentials.EnvProviderName:
 		onceLoggers[credentials.EnvProviderName].Do(func() {
-			logrus.Info("Credentials loaded from default AWS environment variables")
+			stdlogger.Info("Credentials loaded from default AWS environment variables")
 		})
 	}
 	return creds, nil
@@ -133,7 +133,7 @@ func getCredentialsFromSession(options session.Options) (*credentials.Credential
 		return nil, err
 	}
 	onceLoggers["credentialsFromSession"].Do(func() {
-		logrus.Infof("Credentials loaded from the AWS config using %q provider", credsValue.ProviderName)
+		stdlogger.Infof("Credentials loaded from the AWS config using %q provider", credsValue.ProviderName)
 	})
 
 	return creds, nil
@@ -194,7 +194,7 @@ func getUserCredentials() error {
 	if env := os.Getenv("AWS_SHARED_CREDENTIALS_FILE"); env != "" {
 		path = env
 	}
-	logrus.Infof("Writing AWS credentials to %q (https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)", path)
+	stdlogger.Infof("Writing AWS credentials to %q (https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)", path)
 	err = os.MkdirAll(filepath.Dir(path), 0700)
 	if err != nil {
 		return err
@@ -228,7 +228,7 @@ func getUserCredentials() error {
 	if err != nil {
 		err2 := os.Remove(tempPath)
 		if err2 != nil {
-			logrus.Error(errors.Wrap(err2, "failed to remove partially-written credentials file"))
+			stdlogger.Error(errors.Wrap(err2, "failed to remove partially-written credentials file"))
 		}
 		return err
 	}
@@ -262,7 +262,7 @@ func newAWSResolver(region string, services []typesaws.ServiceEndpoint) *awsReso
 
 func (ar *awsResolver) EndpointFor(service, region string, optFns ...func(*endpoints.Options)) (endpoints.ResolvedEndpoint, error) {
 	if s, ok := ar.services[resolverKey(service)]; ok {
-		logrus.Debugf("resolved AWS service %s (%s) to %q", service, region, s.URL)
+		stdlogger.Debugf("resolved AWS service %s (%s) to %q", service, region, s.URL)
 		signingRegion := ar.region
 		def, _ := endpoints.DefaultResolver().EndpointFor(service, region)
 		if len(def.SigningRegion) > 0 {

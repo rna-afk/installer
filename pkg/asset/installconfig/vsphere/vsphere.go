@@ -10,11 +10,11 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/vmware/govmomi/vapi/rest"
 	"github.com/vmware/govmomi/vim25"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types/vsphere"
 	"github.com/openshift/installer/pkg/validate"
 )
@@ -128,7 +128,7 @@ func getClients() (*vCenterClient, error) {
 	}
 
 	// There is a noticeable delay when creating the client, so let the user know what's going on.
-	logrus.Infof("Connecting to vCenter %s", vcenter)
+	stdlogger.Infof("Connecting to vCenter %s", vcenter)
 	vim25Client, restClient, logoutFunction, err := CreateVSphereClients(context.TODO(),
 		vcenter,
 		username,
@@ -168,7 +168,7 @@ func getDataCenter(ctx context.Context, finder Finder, client *vim25.Client) (st
 	}
 	if len(dataCenters) == 1 {
 		name := strings.TrimPrefix(dataCenters[0].InventoryPath, "/")
-		logrus.Infof("Defaulting to only available datacenter: %s", name)
+		stdlogger.Infof("Defaulting to only available datacenter: %s", name)
 		return name, dataCenters[0].InventoryPath, nil
 	}
 
@@ -213,7 +213,7 @@ func getCluster(ctx context.Context, path string, finder Finder, client *vim25.C
 	}
 	if len(clusters) == 1 {
 		name := strings.TrimPrefix(clusters[0].InventoryPath, path+"/host/")
-		logrus.Infof("Defaulting to only available cluster: %s", name)
+		stdlogger.Infof("Defaulting to only available cluster: %s", name)
 		return name, nil
 	}
 
@@ -255,7 +255,7 @@ func getDataStore(ctx context.Context, path string, finder Finder, client *vim25
 		return "", errors.New("did not find any datastores")
 	}
 	if len(dataStores) == 1 {
-		logrus.Infof("Defaulting to only available datastore: %s", dataStores[0].Name())
+		stdlogger.Infof("Defaulting to only available datastore: %s", dataStores[0].Name())
 		return dataStores[0].Name(), nil
 	}
 
@@ -301,7 +301,7 @@ func getNetwork(ctx context.Context, datacenter string, cluster string, finder F
 		if err != nil {
 			return "", errors.Wrap(err, "unable to get network name")
 		}
-		logrus.Infof("Defaulting to only available network: %s", n)
+		stdlogger.Infof("Defaulting to only available network: %s", n)
 		return n, nil
 	}
 

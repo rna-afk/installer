@@ -9,8 +9,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // regex matching the path of a service entries file. The captured group is the name of the service.
@@ -64,7 +64,7 @@ func analyzeGatherBundle(bundleFile io.Reader) error {
 
 		serviceAnalysis, err := analyzeService(tarReader)
 		if err != nil {
-			logrus.Infof("Could not analyze the %s.service: %v", serviceName, err)
+			stdlogger.Infof("Could not analyze the %s.service: %v", serviceName, err)
 			continue
 		}
 
@@ -80,7 +80,7 @@ func analyzeGatherBundle(bundleFile io.Reader) error {
 	for _, check := range analysisChecks {
 		a := serviceAnalyses[check.name]
 		if a.starts == 0 {
-			logrus.Errorf("The bootstrap machine did not execute the %s.service systemd unit", check.name)
+			stdlogger.Errorf("The bootstrap machine did not execute the %s.service systemd unit", check.name)
 			break
 		}
 		if !check.check(a) {
@@ -95,7 +95,7 @@ func checkReleaseImageDownload(a analysis) bool {
 	if a.successful {
 		return true
 	}
-	logrus.Error("The bootstrap machine failed to download the release image")
+	stdlogger.Error("The bootstrap machine failed to download the release image")
 	a.logLastError()
 	return false
 }
@@ -157,6 +157,6 @@ func analyzeService(r io.Reader) (analysis, error) {
 
 func (a analysis) logLastError() {
 	for _, l := range strings.Split(a.lastError, "\n") {
-		logrus.Info(l)
+		stdlogger.Info(l)
 	}
 }

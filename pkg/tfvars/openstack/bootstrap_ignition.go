@@ -16,6 +16,7 @@ import (
 	"github.com/vincent-petithory/dataurl"
 
 	"github.com/openshift/installer/pkg/asset/ignition"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	openstackdefaults "github.com/openshift/installer/pkg/types/openstack/defaults"
 )
@@ -43,14 +44,14 @@ func uploadBootstrapConfig(cloud string, bootstrapIgn string, clusterID string) 
 	if err != nil {
 		return "", err
 	}
-	logrus.Debugf("Image %s was created.", img.Name)
+	stdlogger.Debugf("Image %s was created.", img.Name)
 
-	logrus.Debugf("Uploading bootstrap config to the image %v with ID %v", img.Name, img.ID)
+	stdlogger.Debugf("Uploading bootstrap config to the image %v with ID %v", img.Name, img.ID)
 	res := imagedata.Upload(conn, img.ID, strings.NewReader(bootstrapIgn))
 	if res.Err != nil {
 		return "", res.Err
 	}
-	logrus.Debugf("The config was uploaded.")
+	stdlogger.Debugf("The config was uploaded.")
 
 	// img.File contains location of the uploaded data
 	return img.File, nil

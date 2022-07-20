@@ -5,8 +5,8 @@ import (
 
 	survey "github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/core"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // GetBaseDomain returns a base domain chosen from among the account's domains.
@@ -16,7 +16,7 @@ func GetBaseDomain() (string, error) {
 		return "", err
 	}
 
-	logrus.Debugf("listing Alibaba Cloud domains")
+	stdlogger.Debugf("listing Alibaba Cloud domains")
 	resp, err := client.ListDNSDomain()
 	if err != nil {
 		return "", err

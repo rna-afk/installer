@@ -4,8 +4,8 @@ import (
 	"net"
 	"os"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh/agent"
 
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -16,7 +16,7 @@ import (
 func getAgent(keys []string) (agent.Agent, string, error) {
 	// Attempt to use the existing SSH agent if it's configured or use the default ssh pair generated.
 	if authSock := os.Getenv("SSH_AUTH_SOCK"); authSock != "" {
-		logrus.Debugf("Using SSH_AUTH_SOCK %s to connect to an existing agent", authSock)
+		stdlogger.Debugf("Using SSH_AUTH_SOCK %s to connect to an existing agent", authSock)
 		if conn, err := net.Dial("unix", authSock); err == nil {
 			return agent.NewClient(conn), "agent", nil
 		}
@@ -39,7 +39,7 @@ func newAgent(keyPaths []string) (agent.Agent, string, error) {
 		if err := ag.Add(agent.AddedKey{PrivateKey: key}); err != nil {
 			errs = append(errs, errors.Wrapf(err, "failed to add %s to agent", name))
 		}
-		logrus.Debugf("Added %s to installer's internal agent", name)
+		stdlogger.Debugf("Added %s to installer's internal agent", name)
 	}
 	if agg := utilerrors.NewAggregate(errs); agg != nil {
 		return nil, "", agg

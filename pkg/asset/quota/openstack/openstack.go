@@ -1,13 +1,12 @@
 package openstack
 
 import (
-	"github.com/sirupsen/logrus"
-
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	machineapi "github.com/openshift/api/machine/v1beta1"
 	operv1 "github.com/openshift/api/operator/v1"
 	"github.com/openshift/installer/pkg/asset/installconfig/openstack/validation"
 	"github.com/openshift/installer/pkg/quota"
+	"github.com/openshift/installer/pkg/stdlogger"
 	openstackprovider "sigs.k8s.io/cluster-api-provider-openstack/pkg/apis/openstackproviderconfig/v1alpha1"
 )
 
@@ -65,7 +64,7 @@ func Constraints(ci *validation.CloudInfo, controlPlanes []machineapi.Machine, c
 
 func getOpenstackProviderSpec(spec *machineapi.ProviderSpec) *openstackprovider.OpenstackProviderSpec {
 	if spec.Value == nil {
-		logrus.Warnf("Empty ProviderSpec")
+		stdlogger.Warnf("Empty ProviderSpec")
 		return nil
 	}
 
@@ -75,14 +74,14 @@ func getOpenstackProviderSpec(spec *machineapi.ProviderSpec) *openstackprovider.
 func machineConstraints(ci *validation.CloudInfo, machine *machineapi.Machine, networkType string) []quota.Constraint {
 	osps := getOpenstackProviderSpec(&machine.Spec.ProviderSpec)
 	if osps == nil {
-		logrus.Warnf("Skipping quota validation for Machine %s: Invalid ProviderSpec", machine.Name)
+		stdlogger.Warnf("Skipping quota validation for Machine %s: Invalid ProviderSpec", machine.Name)
 		return nil
 	}
 
 	flavorInfo, ok := ci.Flavors[osps.Flavor]
 	if !ok {
 		// This will result in a separate validation failure
-		logrus.Warnf("Skipping quota validation for Machine %s: Flavor '%s' is not valid",
+		stdlogger.Warnf("Skipping quota validation for Machine %s: Flavor '%s' is not valid",
 			machine.Name, osps.Flavor)
 		return nil
 	}
@@ -93,7 +92,7 @@ func machineConstraints(ci *validation.CloudInfo, machine *machineapi.Machine, n
 func machineSetConstraints(ci *validation.CloudInfo, ms *machineapi.MachineSet, networkType string) []quota.Constraint {
 	osps := getOpenstackProviderSpec(&ms.Spec.Template.Spec.ProviderSpec)
 	if osps == nil {
-		logrus.Warnf("Skipping quota validation for MachineSet %s: Invalid ProviderSpec", ms.Name)
+		stdlogger.Warnf("Skipping quota validation for MachineSet %s: Invalid ProviderSpec", ms.Name)
 		return nil
 	}
 
@@ -102,14 +101,14 @@ func machineSetConstraints(ci *validation.CloudInfo, ms *machineapi.MachineSet, 
 		// We defensively check for nil Replicas here, but this should have
 		// already been defaulted if omitted.
 
-		logrus.Warnf("Skipping quota validation for MachineSet %s due to unspecified replica count", ms.Name)
+		stdlogger.Warnf("Skipping quota validation for MachineSet %s due to unspecified replica count", ms.Name)
 		return nil
 	}
 
 	flavorInfo, ok := ci.Flavors[osps.Flavor]
 	if !ok {
 		// This will result in a separate validation failure
-		logrus.Warnf("Skipping quota validation for MachineSet %s: Flavor '%s' is not valid", ms.Name, osps.Flavor)
+		stdlogger.Warnf("Skipping quota validation for MachineSet %s: Flavor '%s' is not valid", ms.Name, osps.Flavor)
 		return nil
 	}
 	flavor := flavorInfo.Flavor

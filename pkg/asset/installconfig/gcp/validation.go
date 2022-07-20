@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	compute "google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/validate"
 )
@@ -238,7 +238,7 @@ func ValidateEnabledServices(ctx context.Context, client API, project string) er
 		var gErr *googleapi.Error
 		if errors.As(err, &gErr) {
 			if gErr.Code == http.StatusForbidden {
-				logrus.Warn("Permission denied. Unable to fetch enabled services for project.")
+				stdlogger.Warn("Permission denied. Unable to fetch enabled services for project.")
 				return nil
 			}
 		}
@@ -251,7 +251,7 @@ func ValidateEnabledServices(ctx context.Context, client API, project string) er
 	}
 
 	if remaining := optionalServices.Difference(sets.NewString(projectServices...)); remaining.Len() > 0 {
-		logrus.Warnf("the following optional services are not enabled in this project: %s",
+		stdlogger.Warnf("the following optional services are not enabled in this project: %s",
 			strings.Join(remaining.List(), ","))
 	}
 	return nil

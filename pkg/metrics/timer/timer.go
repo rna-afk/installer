@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/sirupsen/logrus"
 )
 
@@ -96,5 +97,5 @@ func (t *Timer) LogSummary(logger *logrus.Logger) {
 			logger.Debugf(fmt.Sprintf("%*s: %s", maxLen, item, t.stageTimes[item]))
 		}
 	}
-	logger.Infof("Time elapsed: %s", t.stageTimes[TotalTimeElapsed])
+	logger.WithFields(stdlogger.Fields).Infof("Time elapsed: %s", t.stageTimes[TotalTimeElapsed])
 }

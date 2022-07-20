@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/coreos/stream-metadata-go/arch"
-	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 )
 
@@ -14,7 +14,7 @@ import (
 func AMIRegions(architecture types.Architecture) sets.String {
 	stream, err := FetchCoreOSBuild(context.Background())
 	if err != nil {
-		logrus.Error("could not fetch the rhcos stream data: %w", err)
+		stdlogger.Error("could not fetch the rhcos stream data: %w", err)
 		return nil
 	}
 	rpmArch := arch.RpmArch(string(architecture))

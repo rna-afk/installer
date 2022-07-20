@@ -13,7 +13,6 @@ import (
 	dockerref "github.com/containers/image/docker/reference"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -21,6 +20,7 @@ import (
 
 	operv1 "github.com/openshift/api/operator/v1"
 	"github.com/openshift/installer/pkg/ipnet"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/alibabacloud"
 	alibabacloudvalidation "github.com/openshift/installer/pkg/types/alibabacloud/validation"
@@ -233,7 +233,7 @@ func validateNetworkingIPVersion(n *types.Networking, p *types.Platform) field.E
 		experimentalDualStackEnabled, _ := strconv.ParseBool(os.Getenv("OPENSHIFT_INSTALL_EXPERIMENTAL_DUAL_STACK"))
 		switch {
 		case p.Azure != nil && experimentalDualStackEnabled:
-			logrus.Warnf("Using experimental Azure dual-stack support")
+			stdlogger.Warnf("Using experimental Azure dual-stack support")
 		case p.BareMetal != nil:
 			apiVIPIPFamily := corev1.IPv6Protocol
 			if net.ParseIP(p.BareMetal.APIVIP).To4() != nil {
@@ -375,17 +375,17 @@ func validateNetworkingForPlatform(n *types.Networking, platform *types.Platform
 		warningMsgFmt := "%s: %s overlaps with default Docker Bridge subnet"
 		for idx, mn := range n.MachineNetwork {
 			if validate.DoCIDRsOverlap(&mn.CIDR.IPNet, validate.DockerBridgeCIDR) {
-				logrus.Warnf(warningMsgFmt, fldPath.Child("machineNetwork").Index(idx), mn.CIDR.String())
+				stdlogger.Warnf(warningMsgFmt, fldPath.Child("machineNetwork").Index(idx), mn.CIDR.String())
 			}
 		}
 		for idx, sn := range n.ServiceNetwork {
 			if validate.DoCIDRsOverlap(&sn.IPNet, validate.DockerBridgeCIDR) {
-				logrus.Warnf(warningMsgFmt, fldPath.Child("serviceNetwork").Index(idx), sn.String())
+				stdlogger.Warnf(warningMsgFmt, fldPath.Child("serviceNetwork").Index(idx), sn.String())
 			}
 		}
 		for idx, cn := range n.ClusterNetwork {
 			if validate.DoCIDRsOverlap(&cn.CIDR.IPNet, validate.DockerBridgeCIDR) {
-				logrus.Warnf(warningMsgFmt, fldPath.Child("clusterNetwork").Index(idx), cn.CIDR.String())
+				stdlogger.Warnf(warningMsgFmt, fldPath.Child("clusterNetwork").Index(idx), cn.CIDR.String())
 			}
 		}
 	}

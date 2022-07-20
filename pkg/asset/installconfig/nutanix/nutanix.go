@@ -12,8 +12,8 @@ import (
 	nutanixclient "github.com/nutanix-cloud-native/prism-go-client/pkg/nutanix"
 	nutanixclientv3 "github.com/nutanix-cloud-native/prism-go-client/pkg/nutanix/v3"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types/nutanix"
 	nutanixtypes "github.com/openshift/installer/pkg/types/nutanix"
 	"github.com/openshift/installer/pkg/validate"
@@ -135,7 +135,7 @@ func getClients() (*PrismCentralClient, error) {
 	}
 
 	// There is a noticeable delay when creating the client, so let the user know what's going on.
-	logrus.Infof("Connecting to Prism Central %s", prismCentral)
+	stdlogger.Infof("Connecting to Prism Central %s", prismCentral)
 	clientV3, err := nutanixtypes.CreateNutanixClient(context.TODO(),
 		prismCentral,
 		port,
@@ -175,7 +175,7 @@ func getPrismElement(ctx context.Context, client *nutanixclientv3.Client) (*nuta
 	if len(pes) == 1 {
 		pe.UUID = *pes[0].Metadata.UUID
 		pe.Endpoint.Address = *pes[0].Spec.Resources.Network.ExternalIP
-		logrus.Infof("Defaulting to only available prism element (cluster): %s", *pes[0].Spec.Name)
+		stdlogger.Infof("Defaulting to only available prism element (cluster): %s", *pes[0].Spec.Name)
 		return pe, nil
 	}
 
@@ -227,7 +227,7 @@ func getSubnet(ctx context.Context, client *nutanixclientv3.Client, peUUID strin
 	if len(subnets) == 1 {
 		n := *subnets[0].Spec.Name
 		u := *subnets[0].Metadata.UUID
-		logrus.Infof("Defaulting to only available network: %s", n)
+		stdlogger.Infof("Defaulting to only available network: %s", n)
 		return u, nil
 	}
 

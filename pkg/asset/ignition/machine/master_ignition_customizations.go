@@ -5,12 +5,12 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	"github.com/openshift/installer/pkg/asset"
 	"github.com/openshift/installer/pkg/asset/ignition"
 	"github.com/openshift/installer/pkg/asset/installconfig"
 	"github.com/openshift/installer/pkg/asset/tls"
+	"github.com/openshift/installer/pkg/stdlogger"
 	mcfgv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 )
 
@@ -55,7 +55,7 @@ func (a *MasterIgnitionCustomizations) Generate(dependencies asset.Parents) erro
 		return errors.Wrap(err, "failed to Marshal defaultPointerIgnition")
 	}
 	if string(savedPointerIgnitionJSON) != string(defaultPointerIgnitionJSON) {
-		logrus.Infof("Master pointer ignition was modified. Saving contents to a machineconfig")
+		stdlogger.Infof("Master pointer ignition was modified. Saving contents to a machineconfig")
 		mc := &mcfgv1.MachineConfig{}
 		mc, err = generatePointerMachineConfig(*savedPointerIgnition, "master")
 		if err != nil {

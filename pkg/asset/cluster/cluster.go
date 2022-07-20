@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/terraform-exec/tfexec"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	"github.com/openshift/installer/pkg/asset"
 	"github.com/openshift/installer/pkg/asset/cluster/aws"
@@ -19,6 +18,7 @@ import (
 	"github.com/openshift/installer/pkg/asset/password"
 	"github.com/openshift/installer/pkg/asset/quota"
 	"github.com/openshift/installer/pkg/metrics/timer"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/terraform"
 	platformstages "github.com/openshift/installer/pkg/terraform/stages/platform"
 	typesaws "github.com/openshift/installer/pkg/types/aws"
@@ -66,7 +66,7 @@ func (c *Cluster) Dependencies() []asset.Asset {
 // Generate launches the cluster and generates the terraform state file on disk.
 func (c *Cluster) Generate(parents asset.Parents) (err error) {
 	if InstallDir == "" {
-		logrus.Fatalf("InstallDir has not been set for the %q asset", c.Name())
+		stdlogger.Fatalf("InstallDir has not been set for the %q asset", c.Name())
 	}
 
 	clusterID := &installconfig.ClusterID{}
@@ -103,7 +103,7 @@ func (c *Cluster) Generate(parents asset.Parents) (err error) {
 	defer os.RemoveAll(terraformDir)
 	terraform.UnpackTerraform(terraformDirPath, stages)
 
-	logrus.Infof("Creating infrastructure resources...")
+	stdlogger.Infof("Creating infrastructure resources...")
 	switch platform {
 	case typesaws.Name:
 		if err := aws.PreTerraform(context.TODO(), clusterID.InfraID, installConfig); err != nil {
@@ -187,7 +187,7 @@ func (c *Cluster) applyTerraform(tmpDir string, platform string, stage terraform
 			Data:     data,
 		})
 	} else if !os.IsNotExist(err) {
-		logrus.Errorf("Failed to read tfstate: %v", err)
+		stdlogger.Errorf("Failed to read tfstate: %v", err)
 		return nil, errors.Wrap(err, "failed to read tfstate")
 	}
 

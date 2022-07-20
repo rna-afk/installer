@@ -8,8 +8,8 @@ import (
 	survey "github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/core"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types/aws"
 	"github.com/openshift/installer/pkg/version"
 )
@@ -49,7 +49,7 @@ func Platform() (*aws.Platform, error) {
 		if IsKnownPublicRegion(*defaultRegionPointer, architecture) {
 			defaultRegion = *defaultRegionPointer
 		} else {
-			logrus.Warnf("Unrecognized AWS region %q, defaulting to %s", *defaultRegionPointer, defaultRegion)
+			stdlogger.Warnf("Unrecognized AWS region %q, defaulting to %s", *defaultRegionPointer, defaultRegion)
 		}
 	}
 

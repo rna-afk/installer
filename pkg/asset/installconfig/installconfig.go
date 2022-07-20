@@ -7,7 +7,6 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
@@ -22,6 +21,7 @@ import (
 	icovirt "github.com/openshift/installer/pkg/asset/installconfig/ovirt"
 	icpowervs "github.com/openshift/installer/pkg/asset/installconfig/powervs"
 	icvsphere "github.com/openshift/installer/pkg/asset/installconfig/vsphere"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/conversion"
 	"github.com/openshift/installer/pkg/types/defaults"
@@ -137,8 +137,8 @@ func (a *InstallConfig) Load(f asset.FileFetcher) (found bool, err error) {
 			return false, errors.Wrap(err, asset.InstallConfigError)
 		}
 		err = errors.Wrapf(err, "failed to parse first occurence of unknown field")
-		logrus.Warnf(err.Error())
-		logrus.Info("Attempting to unmarshal while ignoring unknown keys because strict unmarshaling failed")
+		stdlogger.Warnf(err.Error())
+		stdlogger.Info("Attempting to unmarshal while ignoring unknown keys because strict unmarshaling failed")
 		if err = yaml.UnmarshalStrict(file.Data, config); err != nil {
 			err = errors.Wrapf(err, "failed to unmarshal %s", installConfigFilename)
 			return false, errors.Wrap(err, asset.InstallConfigError)

@@ -4,8 +4,8 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types/ovirt"
 )
 
@@ -22,14 +22,14 @@ func Platform() (*ovirt.Platform, error) {
 		if err != nil {
 			ovirtConfig, err = engineSetup()
 			if err != nil {
-				logrus.Error(errors.Wrap(err, "oVirt configuration failed"))
+				stdlogger.Error(errors.Wrap(err, "oVirt configuration failed"))
 			}
 		}
 
 		if err == nil {
 			c, err = ovirtConfig.getValidatedConnection()
 			if err != nil {
-				logrus.Error(errors.Wrap(err, "failed to validate oVirt configuration"))
+				stdlogger.Error(errors.Wrap(err, "failed to validate oVirt configuration"))
 			} else {
 				break
 			}

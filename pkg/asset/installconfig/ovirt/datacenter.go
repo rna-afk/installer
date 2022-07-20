@@ -1,10 +1,10 @@
 package ovirt
 
 import (
+	"github.com/openshift/installer/pkg/stdlogger"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // datacentersAvailable looks for all datacenters available in the system based on searchFilter.
@@ -16,7 +16,7 @@ func datacentersAvailable(conn *ovirtsdk4.Connection, searchFilter string) (*ovi
 	}
 	dcService := conn.SystemService().DataCentersService()
 
-	logrus.Debugf("searching for DataCenters with search filter: %s", searchFilter)
+	stdlogger.Debugf("searching for DataCenters with search filter: %s", searchFilter)
 	dcResp, err := dcService.List().Search(searchFilter).Send()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to search available DataCenters")

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	"github.com/openshift/installer/pkg/asset"
 	"github.com/openshift/installer/pkg/asset/installconfig"
@@ -22,6 +21,7 @@ import (
 	"github.com/openshift/installer/pkg/quota"
 	quotaaws "github.com/openshift/installer/pkg/quota/aws"
 	quotagcp "github.com/openshift/installer/pkg/quota/gcp"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types/alibabacloud"
 	typesaws "github.com/openshift/installer/pkg/types/aws"
 	"github.com/openshift/installer/pkg/types/azure"
@@ -74,7 +74,7 @@ func (a *PlatformQuotaCheck) Generate(dependencies asset.Parents) error {
 	switch platform {
 	case typesaws.Name:
 		if !quotaaws.SupportedRegions.Has(ic.AWS.Region) {
-			logrus.Debugf("%s does not support API for checking quotas, therefore skipping.", ic.AWS.Region)
+			stdlogger.Debugf("%s does not support API for checking quotas, therefore skipping.", ic.AWS.Region)
 			return nil
 		}
 		services := []string{"ec2", "vpc"}
@@ -84,8 +84,8 @@ func (a *PlatformQuotaCheck) Generate(dependencies asset.Parents) error {
 		}
 		q, err := quotaaws.Load(context.TODO(), session, ic.AWS.Region, services...)
 		if quotaaws.IsUnauthorized(err) {
-			logrus.Debugf("Missing permissions to fetch Quotas and therefore will skip checking them: %v, make sure you have `servicequotas:ListAWSDefaultServiceQuotas` permission available to the user.", err)
-			logrus.Info("Skipping quota checks")
+			stdlogger.Debugf("Missing permissions to fetch Quotas and therefore will skip checking them: %v, make sure you have `servicequotas:ListAWSDefaultServiceQuotas` permission available to the user.", err)
+			stdlogger.Info("Skipping quota checks")
 			return nil
 		}
 		if err != nil {
@@ -93,7 +93,7 @@ func (a *PlatformQuotaCheck) Generate(dependencies asset.Parents) error {
 		}
 		instanceTypes, err := aws.InstanceTypes(context.TODO(), session, ic.AWS.Region)
 		if quotaaws.IsUnauthorized(err) {
-			logrus.Warnf("Missing permissions to fetch instance types and therefore will skip checking Quotas: %v, make sure you have `ec2:DescribeInstanceTypes` permission available to the user.", err)
+			stdlogger.Warnf("Missing permissions to fetch instance types and therefore will skip checking Quotas: %v, make sure you have `ec2:DescribeInstanceTypes` permission available to the user.", err)
 			return nil
 		}
 		if err != nil {
@@ -108,7 +108,7 @@ func (a *PlatformQuotaCheck) Generate(dependencies asset.Parents) error {
 		services := []string{"compute.googleapis.com", "iam.googleapis.com"}
 		q, err := quotagcp.Load(context.TODO(), ic.Config.Platform.GCP.ProjectID, services...)
 		if quotagcp.IsUnauthorized(err) {
-			logrus.Warnf("Missing permissions to fetch Quotas and therefore will skip checking them: %v, make sure you have `roles/servicemanagement.quotaViewer` assigned to the user.", err)
+			stdlogger.Warnf("Missing permissions to fetch Quotas and therefore will skip checking them: %v, make sure you have `roles/servicemanagement.quotaViewer` assigned to the user.", err)
 			return nil
 		}
 		if err != nil {
@@ -129,7 +129,7 @@ func (a *PlatformQuotaCheck) Generate(dependencies asset.Parents) error {
 		summarizeReport(reports)
 	case typesopenstack.Name:
 		if skip := os.Getenv("OPENSHIFT_INSTALL_SKIP_PREFLIGHT_VALIDATIONS"); skip == "1" {
-			logrus.Warnf("OVERRIDE: pre-flight validation disabled.")
+			stdlogger.Warnf("OVERRIDE: pre-flight validation disabled.")
 			return nil
 		}
 		ci, err := openstackvalidation.GetCloudInfo(ic.Config)
@@ -137,7 +137,7 @@ func (a *PlatformQuotaCheck) Generate(dependencies asset.Parents) error {
 			return errors.Wrap(err, "failed to get cloud info")
 		}
 		if ci == nil {
-			logrus.Warnf("Empty OpenStack cloud info and therefore will skip checking quota validation.")
+			stdlogger.Warnf("Empty OpenStack cloud info and therefore will skip checking quota validation.")
 			return nil
 		}
 		reports, err := quota.Check(ci.Quotas, openstack.Constraints(ci, masters, workers, ic.Config.NetworkType))
@@ -200,7 +200,7 @@ func summarizeFailingReport(reports []quota.ConstraintReport) error {
 
 	if len(notavailable) == 0 && len(unknown) > 0 {
 		// all quotas are missing information so warn and skip
-		logrus.Warnf("Failed to find information on quotas %s", strings.Join(unknown, ", "))
+		stdlogger.Warnf("Failed to find information on quotas %s", strings.Join(unknown, ", "))
 		return nil
 	}
 
@@ -229,6 +229,6 @@ func summarizeReport(reports []quota.ConstraintReport) {
 		}
 	}
 	if len(low) > 0 {
-		logrus.Warnf("Following quotas %s are available but will be completely used pretty soon.", strings.Join(low, ", "))
+		stdlogger.Warnf("Following quotas %s are available but will be completely used pretty soon.", strings.Join(low, ", "))
 	}
 }

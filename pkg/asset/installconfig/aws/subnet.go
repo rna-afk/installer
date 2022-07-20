@@ -8,8 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // Subnet holds metadata for a subnet.
@@ -126,7 +126,7 @@ func isSubnetPublic(rt []*ec2.RouteTable, subnetID string) (bool, error) {
 		for _, table := range rt {
 			for _, assoc := range table.Associations {
 				if aws.BoolValue(assoc.Main) {
-					logrus.Debugf("Assuming implicit use of main routing table %s for %s",
+					stdlogger.Debugf("Assuming implicit use of main routing table %s for %s",
 						aws.StringValue(table.RouteTableId), subnetID)
 					subnetTable = table
 					break

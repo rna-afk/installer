@@ -9,9 +9,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/profiles/2018-03-01/resources/mgmt/resources"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	"github.com/openshift/installer/pkg/asset/installconfig"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/azure"
 )
@@ -53,7 +53,7 @@ func PreTerraform(ctx context.Context, clusterID string, installConfig *installc
 		group.Tags = map[string]*string{}
 	}
 	group.Tags[fmt.Sprintf("kubernetes.io_cluster.%s", clusterID)] = to.StringPtr("owned")
-	logrus.Debugf("Tagging %s with kubernetes.io/cluster/%s: shared", installConfig.Config.Azure.ResourceGroupName, clusterID)
+	stdlogger.Debugf("Tagging %s with kubernetes.io/cluster/%s: shared", installConfig.Config.Azure.ResourceGroupName, clusterID)
 	_, err = client.Update(ctx, installConfig.Config.Azure.ResourceGroupName, resources.GroupPatchable{
 		Tags: group.Tags,
 	})

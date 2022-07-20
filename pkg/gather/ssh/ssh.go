@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/openshift/installer/pkg/lineprinter"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/pkg/errors"
 	"github.com/pkg/sftp"
 	"github.com/sirupsen/logrus"
@@ -131,7 +132,7 @@ func LoadPrivateSSHKeys(paths []string) (map[string]interface{}, error) {
 		}
 		key, err := ssh.ParseRawPrivateKey(data)
 		if err != nil {
-			logrus.Debugf("failed to parse SSH private key from %q", path)
+			stdlogger.Debugf("failed to parse SSH private key from %q", path)
 			errs = append(errs, errors.Wrapf(err, "failed to parse SSH private key from %q", path))
 			continue
 		}

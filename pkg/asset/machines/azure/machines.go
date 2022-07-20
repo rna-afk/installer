@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	machineapi "github.com/openshift/api/machine/v1beta1"
 	icazure "github.com/openshift/installer/pkg/asset/installconfig/azure"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/azure"
 )
@@ -97,7 +97,7 @@ func provider(platform *azure.Platform, mpool *azure.MachinePool, osImage string
 		if acceleratedNetworking {
 			mpool.VMNetworkingType = string(azure.VMnetworkingTypeAccelerated)
 		} else {
-			logrus.Infof("Instance type %s does not support Accelerated Networking. Using Basic Networking instead.", mpool.InstanceType)
+			stdlogger.Infof("Instance type %s does not support Accelerated Networking. Using Basic Networking instead.", mpool.InstanceType)
 		}
 	}
 	rg := platform.ClusterResourceGroupName(clusterID)

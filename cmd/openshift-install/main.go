@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -58,7 +59,7 @@ func installerMain() {
 	}
 
 	if err := rootCmd.Execute(); err != nil {
-		logrus.Fatalf("Error executing openshift-install: %v", err)
+		stdlogger.Fatalf("Error executing openshift-install: %v", err)
 	}
 }
 
@@ -98,6 +99,6 @@ func runRootCmd(cmd *cobra.Command, args []string) {
 	}))
 
 	if err != nil {
-		logrus.Fatal(errors.Wrap(err, "invalid log-level"))
+		stdlogger.Fatal(errors.Wrap(err, "invalid log-level"))
 	}
 }

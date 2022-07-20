@@ -15,7 +15,6 @@ import (
 	libvirtprovider "github.com/openshift/cluster-api-provider-libvirt/pkg/apis/libvirtproviderconfig/v1beta1"
 	ovirtprovider "github.com/openshift/cluster-api-provider-ovirt/pkg/apis/ovirtprovider/v1beta1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
 	configv1 "github.com/openshift/api/config/v1"
 	machinev1 "github.com/openshift/api/machine/v1"
@@ -36,6 +35,7 @@ import (
 	"github.com/openshift/installer/pkg/asset/openshiftinstall"
 	"github.com/openshift/installer/pkg/asset/rhcos"
 	rhcospkg "github.com/openshift/installer/pkg/rhcos"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/tfvars"
 	alibabacloudtfvars "github.com/openshift/installer/pkg/tfvars/alibabacloud"
 	awstfvars "github.com/openshift/installer/pkg/tfvars/aws"
@@ -897,7 +897,7 @@ func (t *TerraformVariables) Generate(parents asset.Parents) error {
 			Data:     data,
 		})
 	default:
-		logrus.Warnf("unrecognized platform %s", platform)
+		stdlogger.Warnf("unrecognized platform %s", platform)
 	}
 
 	return nil

@@ -5,8 +5,8 @@ import (
 	"encoding/pem"
 
 	"github.com/openshift/installer/pkg/asset"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // CertBundle contains a multiple certificates in a bundle.
@@ -30,11 +30,11 @@ func (b *CertBundle) Generate(filename string, certs ...CertInterface) error {
 	for _, c := range certs {
 		cert, err := PemToCertificate(c.Cert())
 		if err != nil {
-			logrus.Debugf("Failed to decode bundle certificate: %s", err)
+			stdlogger.Debugf("Failed to decode bundle certificate: %s", err)
 			return errors.Wrap(err, "decoding certificate from PEM")
 		}
 		if err := pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
-			logrus.Debugf("Failed to encode bundle certificates: %s", err)
+			stdlogger.Debugf("Failed to encode bundle certificates: %s", err)
 			return errors.Wrap(err, "encoding certificate to PEM")
 		}
 	}

@@ -10,8 +10,8 @@ import (
 	"sync"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	googleoauth "golang.org/x/oauth2/google"
 	compute "google.golang.org/api/compute/v1"
 )
@@ -65,7 +65,7 @@ func loadCredentials(ctx context.Context) (*googleoauth.Credentials, error) {
 			continue
 		}
 		onceLoggers[loader].Do(func() {
-			logrus.Infof("Credentials loaded from %s", loader)
+			stdlogger.Infof("Credentials loaded from %s", loader)
 		})
 		return creds, nil
 	}
@@ -79,7 +79,7 @@ func getCredentials(ctx context.Context) (*googleoauth.Credentials, error) {
 	}
 
 	filePath := defaultAuthFilePath
-	logrus.Infof("Saving the credentials to %q", filePath)
+	stdlogger.Infof("Saving the credentials to %q", filePath)
 	if err := os.MkdirAll(filepath.Dir(filePath), 0700); err != nil {
 		return nil, err
 	}

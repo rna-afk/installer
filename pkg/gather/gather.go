@@ -13,6 +13,7 @@ import (
 
 	"github.com/openshift/installer/pkg/asset/cluster"
 	"github.com/openshift/installer/pkg/gather/providers"
+	"github.com/openshift/installer/pkg/stdlogger"
 )
 
 // New returns a Gather based on `metadata.json` in `rootDir`.
@@ -115,7 +116,7 @@ func CombineArchives(archiveName string, archives map[string]string) error {
 	for archive, subDirectory := range archives {
 		_, err := os.Stat(archive)
 		if err != nil {
-			logrus.Warnf("Unable to stat %s, skipping", archive)
+			stdlogger.Warnf("Unable to stat %s, skipping", archive)
 			continue
 		}
 
@@ -166,7 +167,7 @@ func CombineArchives(archiveName string, archives map[string]string) error {
 
 		// The files are now part of the combined archive, so clean it up
 		if err := os.Remove(archive); err != nil {
-			logrus.Warnf("Could not remove %s: %v\n", archive, err)
+			stdlogger.Warnf("Could not remove %s: %v\n", archive, err)
 		}
 	}
 

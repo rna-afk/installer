@@ -13,10 +13,10 @@ import (
 	aznetwork "github.com/Azure/azure-sdk-for-go/profiles/2018-03-01/network/mgmt/network"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	aztypes "github.com/openshift/installer/pkg/types/azure"
 	"github.com/openshift/installer/pkg/types/azure/defaults"
@@ -116,7 +116,7 @@ func validateMininumRequirements(fieldPath *field.Path, req resourceRequirements
 			allErrs = append(allErrs, field.Invalid(fieldPath, instanceType, errMsg))
 		}
 	} else {
-		logrus.Warnf("could not find vCPUsAvailable information for instance type %s", instanceType)
+		stdlogger.Warnf("could not find vCPUsAvailable information for instance type %s", instanceType)
 	}
 
 	val, ok = capabilities["MemoryGB"]
@@ -130,7 +130,7 @@ func validateMininumRequirements(fieldPath *field.Path, req resourceRequirements
 			allErrs = append(allErrs, field.Invalid(fieldPath, instanceType, errMsg))
 		}
 	} else {
-		logrus.Warnf("could not find MemoryGB information for instance type %s", instanceType)
+		stdlogger.Warnf("could not find MemoryGB information for instance type %s", instanceType)
 	}
 
 	return allErrs

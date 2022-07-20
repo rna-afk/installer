@@ -21,7 +21,6 @@ import (
 	igntypes "github.com/coreos/ignition/v2/config/v3_2/types"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/vincent-petithory/dataurl"
 
 	"github.com/openshift/installer/data"
@@ -37,6 +36,7 @@ import (
 	"github.com/openshift/installer/pkg/asset/releaseimage"
 	"github.com/openshift/installer/pkg/asset/rhcos"
 	"github.com/openshift/installer/pkg/asset/tls"
+	"github.com/openshift/installer/pkg/stdlogger"
 	"github.com/openshift/installer/pkg/types"
 	baremetaltypes "github.com/openshift/installer/pkg/types/baremetal"
 	vspheretypes "github.com/openshift/installer/pkg/types/vsphere"
@@ -267,7 +267,7 @@ func (a *Common) getTemplateData(dependencies asset.Parents, bootstrapInPlace bo
 
 	bootstrapNodeIP := os.Getenv("OPENSHIFT_INSTALL_BOOTSTRAP_NODE_IP")
 	if bootstrapNodeIP != "" && net.ParseIP(bootstrapNodeIP) == nil {
-		logrus.Warnf("OPENSHIFT_INSTALL_BOOTSTRAP_NODE_IP must have valid ip address, given %s. Skipping it", bootstrapNodeIP)
+		stdlogger.Warnf("OPENSHIFT_INSTALL_BOOTSTRAP_NODE_IP must have valid ip address, given %s. Skipping it", bootstrapNodeIP)
 		bootstrapNodeIP = ""
 	}
 
@@ -282,7 +282,7 @@ func (a *Common) getTemplateData(dependencies asset.Parents, bootstrapInPlace bo
 	// Set cluster profile
 	clusterProfile := ""
 	if cp := os.Getenv("OPENSHIFT_INSTALL_EXPERIMENTAL_CLUSTER_PROFILE"); cp != "" {
-		logrus.Warnf("Found override for Cluster Profile: %q", cp)
+		stdlogger.Warnf("Found override for Cluster Profile: %q", cp)
 		clusterProfile = cp
 	}
 	var bootstrapInPlaceConfig *types.BootstrapInPlace
@@ -401,7 +401,7 @@ func (a *Common) addSystemdUnits(uri string, templateData *bootstrapTemplateData
 
 		if info.IsDir() {
 			if dir := info.Name(); !strings.HasSuffix(dir, ".d") {
-				logrus.Tracef("Ignoring internal asset directory %q while looking for systemd drop-ins", dir)
+				stdlogger.Tracef("Ignoring internal asset directory %q while looking for systemd drop-ins", dir)
 				continue
 			}
 
@@ -604,7 +604,7 @@ func warnIfCertificatesExpired(config *igntypes.Config) {
 			fileName := path.Base(file.Path)
 			decoded, err := dataurl.DecodeString(*file.Contents.Source)
 			if err != nil {
-				logrus.Debugf("Unable to decode certificate %s: %s", fileName, err.Error())
+				stdlogger.Debugf("Unable to decode certificate %s: %s", fileName, err.Error())
 				continue
 			}
 			data := decoded.Data
@@ -617,11 +617,11 @@ func warnIfCertificatesExpired(config *igntypes.Config) {
 				cert, err := x509.ParseCertificate(block.Bytes)
 				if err == nil {
 					if time.Now().UTC().After(cert.NotAfter) {
-						logrus.Warnf("Bootstrap Ignition-Config Certificate %s expired at %s.", path.Base(file.Path), cert.NotAfter.Format(time.RFC3339))
+						stdlogger.Warnf("Bootstrap Ignition-Config Certificate %s expired at %s.", path.Base(file.Path), cert.NotAfter.Format(time.RFC3339))
 						expiredCerts++
 					}
 				} else {
-					logrus.Debugf("Unable to parse certificate %s: %s", fileName, err.Error())
+					stdlogger.Debugf("Unable to parse certificate %s: %s", fileName, err.Error())
 					break
 				}
 
@@ -631,7 +631,7 @@ func warnIfCertificatesExpired(config *igntypes.Config) {
 	}
 
 	if expiredCerts > 0 {
-		logrus.Warnf("Bootstrap Ignition-Config: %d certificates expired. Installation attempts with the created Ignition-Configs will possibly fail.", expiredCerts)
+		stdlogger.Warnf("Bootstrap Ignition-Config: %d certificates expired. Installation attempts with the created Ignition-Configs will possibly fail.", expiredCerts)
 	}
 }
 

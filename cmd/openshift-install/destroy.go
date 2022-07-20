@@ -25,6 +25,7 @@ import (
 	quotaasset "github.com/openshift/installer/pkg/destroy/quota"
 	_ "github.com/openshift/installer/pkg/destroy/vsphere"
 	"github.com/openshift/installer/pkg/metrics/timer"
+	"github.com/openshift/installer/pkg/stdlogger"
 )
 
 func newDestroyCmd() *cobra.Command {
@@ -52,7 +53,7 @@ func newDestroyClusterCmd() *cobra.Command {
 
 			err := runDestroyCmd(rootOpts.dir, os.Getenv("OPENSHIFT_INSTALL_REPORT_QUOTA_FOOTPRINT") == "true")
 			if err != nil {
-				logrus.Fatal(err)
+				stdlogger.Fatal(err)
 			}
 		},
 	}
@@ -124,7 +125,7 @@ func newDestroyBootstrapCmd() *cobra.Command {
 			timer.StartTimer(timer.TotalTimeElapsed)
 			err := bootstrap.Destroy(rootOpts.dir)
 			if err != nil {
-				logrus.Fatal(err)
+				stdlogger.Fatal(err)
 			}
 			timer.StopTimer(timer.TotalTimeElapsed)
 			timer.LogSummary()
