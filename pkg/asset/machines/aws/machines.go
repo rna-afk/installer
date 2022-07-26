@@ -4,6 +4,8 @@ package aws
 import (
 	"fmt"
 
+	v1 "github.com/openshift/api/config/v1"
+	machinev1 "github.com/openshift/api/machine/v1"
 	machineapi "github.com/openshift/api/machine/v1beta1"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -17,9 +19,9 @@ import (
 )
 
 // Machines returns a list of machines for a machinepool.
-func Machines(clusterID string, region string, subnets map[string]string, pool *types.MachinePool, role, userDataSecret string, userTags map[string]string) ([]machineapi.Machine, error) {
+func Machines(clusterID string, region string, subnets map[string]string, pool *types.MachinePool, role, userDataSecret string, userTags map[string]string) ([]machineapi.Machine, []machinev1.ControlPlaneMachineSet, error) {
 	if poolPlatform := pool.Platform.Name(); poolPlatform != aws.Name {
-		return nil, fmt.Errorf("non-AWS machine-pool: %q", poolPlatform)
+		return nil, nil, fmt.Errorf("non-AWS machine-pool: %q", poolPlatform)
 	}
 	mpool := pool.Platform.AWS
 
@@ -27,12 +29,14 @@ func Machines(clusterID string, region string, subnets map[string]string, pool *
 	if pool.Replicas != nil {
 		total = *pool.Replicas
 	}
+	numOfAZs := int64(len(mpool.Zones))
 	var machines []machineapi.Machine
+	var controlPlaneMachineSet []machinev1.ControlPlaneMachineSet
 	for idx := int64(0); idx < total; idx++ {
 		zone := mpool.Zones[int(idx)%len(mpool.Zones)]
 		subnet, ok := subnets[zone]
 		if len(subnets) > 0 && !ok {
-			return nil, errors.Errorf("no subnet for zone %s", zone)
+			return nil, nil, errors.Errorf("no subnet for zone %s", zone)
 		}
 		provider, err := provider(
 			clusterID,
@@ -48,8 +52,9 @@ func Machines(clusterID string, region string, subnets map[string]string, pool *
 			userTags,
 		)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to create provider")
+			return nil, nil, errors.Wrap(err, "failed to create provider")
 		}
+		name := fmt.Sprintf("%s-%s-%d", clusterID, pool.Name, idx)
 		machine := machineapi.Machine{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "machine.openshift.io/v1beta1",
@@ -57,7 +62,7 @@ func Machines(clusterID string, region string, subnets map[string]string, pool *
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "openshift-machine-api",
-				Name:      fmt.Sprintf("%s-%s-%d", clusterID, pool.Name, idx),
+				Name:      name,
 				Labels: map[string]string{
 					"machine.openshift.io/cluster-api-cluster":      clusterID,
 					"machine.openshift.io/cluster-api-machine-role": role,
@@ -72,10 +77,70 @@ func Machines(clusterID string, region string, subnets map[string]string, pool *
 			},
 		}
 
+		replicas := int32(total / numOfAZs)
+		if int64(idx) < total%numOfAZs {
+			replicas++
+		}
+		machineSet := machinev1.ControlPlaneMachineSet{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "machine.openshift.io/v1",
+				Kind:       "ControlPlaneMachineSet",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "openshift-machine-api",
+				Name:      name,
+				Labels: map[string]string{
+					"machine.openshift.io/cluster-api-cluster": clusterID,
+				},
+			},
+			Spec: machinev1.ControlPlaneMachineSetSpec{
+				Replicas: &replicas,
+				Selector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"machine.openshift.io/cluster-api-machineset": name,
+						"machine.openshift.io/cluster-api-cluster":    clusterID,
+					},
+				},
+				Template: machinev1.ControlPlaneMachineSetTemplate{
+					MachineType: machinev1.OpenShiftMachineV1Beta1MachineType,
+					OpenShiftMachineV1Beta1Machine: &machinev1.OpenShiftMachineV1Beta1MachineTemplate{
+						FailureDomains: machinev1.FailureDomains{
+							Platform: v1.AWSPlatformType,
+							AWS: &[]machinev1.AWSFailureDomain{
+								{
+									Subnet: &machinev1.AWSResourceReference{
+										Type: machinev1.AWSIDReferenceType,
+										ID:   &subnet,
+									},
+									Placement: machinev1.AWSFailureDomainPlacement{
+										AvailabilityZone: zone,
+									},
+								},
+							},
+						},
+						ObjectMeta: machinev1.ControlPlaneMachineSetTemplateObjectMeta{
+							Labels: map[string]string{
+								"machine.openshift.io/cluster-api-machineset":   name,
+								"machine.openshift.io/cluster-api-cluster":      clusterID,
+								"machine.openshift.io/cluster-api-machine-role": role,
+								"machine.openshift.io/cluster-api-machine-type": role,
+							},
+						},
+						Spec: machineapi.MachineSpec{
+							ProviderSpec: machineapi.ProviderSpec{
+								Value: &runtime.RawExtension{Object: provider},
+							},
+						},
+					},
+				},
+			},
+		}
+
 		machines = append(machines, machine)
+		controlPlaneMachineSet = append(controlPlaneMachineSet, machineSet)
 	}
 
-	return machines, nil
+	return machines, controlPlaneMachineSet, nil
 }
 
 func provider(clusterID string, region string, subnet string, instanceType string, root *aws.EC2RootVolume, imds aws.EC2Metadata, osImage string, zone, role, userDataSecret string, userTags map[string]string) (*machineapi.AWSMachineProviderConfig, error) {

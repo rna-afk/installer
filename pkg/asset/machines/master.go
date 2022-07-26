@@ -107,6 +107,9 @@ const (
 	// masterUserDataFileName is the filename used for the master
 	// user-data secret.
 	masterUserDataFileName = "99_openshift-cluster-api_master-user-data-secret.yaml"
+
+	// masterUserDataFileName is the filename used for the control plane machine sets.
+	controlPlaneMachineSetFileName = "99_openshift-machine-api_master-control-plane-machine-set-%s.yaml"
 )
 
 var (
@@ -154,6 +157,7 @@ func (m *Master) Generate(dependencies asset.Parents) error {
 	pool := *ic.ControlPlane
 	var err error
 	machines := []machinev1beta1.Machine{}
+	controlPlaneMachineSet := []machinev1.ControlPlaneMachineSet{}
 	switch ic.Platform.Name() {
 	case alibabacloudtypes.Name:
 		client, err := installConfig.AlibabaCloud.Client()
@@ -242,7 +246,7 @@ func (m *Master) Generate(dependencies asset.Parents) error {
 		}
 
 		pool.Platform.AWS = &mpool
-		machines, err = aws.Machines(
+		machines, controlPlaneMachineSet, err = aws.Machines(
 			clusterID.InfraID,
 			installConfig.Config.Platform.AWS.Region,
 			subnets,
@@ -493,6 +497,10 @@ func (m *Master) Generate(dependencies asset.Parents) error {
 	}
 
 	m.MachineFiles = make([]*asset.File, len(machines))
+	if len(controlPlaneMachineSet) > 0 {
+		m.MachineFiles = make([]*asset.File, len(machines)+len(controlPlaneMachineSet))
+	}
+	count := 0
 	padFormat := fmt.Sprintf("%%0%dd", len(fmt.Sprintf("%d", len(machines))))
 	for i, machine := range machines {
 		data, err := yaml.Marshal(machine)
@@ -504,6 +512,22 @@ func (m *Master) Generate(dependencies asset.Parents) error {
 		m.MachineFiles[i] = &asset.File{
 			Filename: filepath.Join(directory, fmt.Sprintf(masterMachineFileName, padded)),
 			Data:     data,
+		}
+		count += i
+	}
+
+	if len(controlPlaneMachineSet) > 0 {
+		for i, machine := range controlPlaneMachineSet {
+			data, err := yaml.Marshal(machine)
+			if err != nil {
+				return errors.Wrapf(err, "marshal control plane machine set %d", i)
+			}
+
+			padded := fmt.Sprintf(padFormat, i)
+			m.MachineFiles[count+i] = &asset.File{
+				Filename: filepath.Join(directory, fmt.Sprintf(controlPlaneMachineSetFileName, padded)),
+				Data:     data,
+			}
 		}
 	}
 	return nil
