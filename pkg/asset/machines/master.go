@@ -107,6 +107,9 @@ const (
 	// masterUserDataFileName is the filename used for the master
 	// user-data secret.
 	masterUserDataFileName = "99_openshift-cluster-api_master-user-data-secret.yaml"
+
+	// masterUserDataFileName is the filename used for the control plane machine sets.
+	controlPlaneMachineSetFileName = "99_openshift-machine-api_master-control-plane-machine-set.yaml"
 )
 
 var (
@@ -154,6 +157,7 @@ func (m *Master) Generate(dependencies asset.Parents) error {
 	pool := *ic.ControlPlane
 	var err error
 	machines := []machinev1beta1.Machine{}
+	var controlPlaneMachineSet *machinev1.ControlPlaneMachineSet
 	switch ic.Platform.Name() {
 	case alibabacloudtypes.Name:
 		client, err := installConfig.AlibabaCloud.Client()
@@ -242,7 +246,7 @@ func (m *Master) Generate(dependencies asset.Parents) error {
 		}
 
 		pool.Platform.AWS = &mpool
-		machines, err = aws.Machines(
+		machines, controlPlaneMachineSet, err = aws.Machines(
 			clusterID.InfraID,
 			installConfig.Config.Platform.AWS.Region,
 			subnets,
@@ -493,6 +497,10 @@ func (m *Master) Generate(dependencies asset.Parents) error {
 	}
 
 	m.MachineFiles = make([]*asset.File, len(machines))
+	if controlPlaneMachineSet != nil {
+		m.MachineFiles = make([]*asset.File, len(machines)+1)
+	}
+	count := 0
 	padFormat := fmt.Sprintf("%%0%dd", len(fmt.Sprintf("%d", len(machines))))
 	for i, machine := range machines {
 		data, err := yaml.Marshal(machine)
@@ -503,6 +511,18 @@ func (m *Master) Generate(dependencies asset.Parents) error {
 		padded := fmt.Sprintf(padFormat, i)
 		m.MachineFiles[i] = &asset.File{
 			Filename: filepath.Join(directory, fmt.Sprintf(masterMachineFileName, padded)),
+			Data:     data,
+		}
+		count += i
+	}
+
+	if controlPlaneMachineSet != nil {
+		data, err := yaml.Marshal(controlPlaneMachineSet)
+		if err != nil {
+			return errors.Wrapf(err, "marshal control plane machine set")
+		}
+		m.MachineFiles[count+1] = &asset.File{
+			Filename: filepath.Join(directory, controlPlaneMachineSetFileName),
 			Data:     data,
 		}
 	}
