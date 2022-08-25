@@ -101,7 +101,6 @@ func (o *ClusterUninstaller) removeSharedTag(ctx context.Context, session *sessi
 				o.Logger.Debugf("No matches in %s for %s: shared, removing client", *tagClient.Config.Region, key)
 				continue
 			}
-			nextTagClients = append(nextTagClients, tagClient)
 
 			for i := 0; i < len(arns); i += 20 {
 				request.ResourceARNList = make([]*string, 0, 20)
