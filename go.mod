@@ -242,3 +242,5 @@ replace sigs.k8s.io/controller-tools => sigs.k8s.io/controller-tools v0.3.1-0.20
 replace github.com/openshift/api => github.com/openshift/api v0.0.0-20220823143838-5768cc618ba0
 
 replace github.com/terraform-providers/terraform-provider-nutanix => github.com/nutanix/terraform-provider-nutanix v1.5.0
+
+replace github.com/mattn/go-sqlite3 => github.com/mattn/go-sqlite3 v1.10.0
