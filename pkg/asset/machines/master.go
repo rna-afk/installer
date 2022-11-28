@@ -371,7 +371,7 @@ func (m *Master) Generate(dependencies asset.Parents) error {
 			return err
 		}
 
-		machines, err = azure.Machines(clusterID.InfraID, ic, &pool, string(*rhcosImage), "master", masterUserDataSecretName, capabilities, rhcosRelease.GetAzureReleaseVersion())
+		machines, controlPlaneMachineSet, err = azure.Machines(clusterID.InfraID, ic, &pool, string(*rhcosImage), "master", masterUserDataSecretName, capabilities, rhcosRelease.GetAzureReleaseVersion())
 		if err != nil {
 			return errors.Wrap(err, "failed to create master machine objects")
 		}
