@@ -368,8 +368,7 @@ func (m *Master) Generate(dependencies asset.Parents) error {
 			return err
 		}
 		useImageGallery := installConfig.Azure.CloudName != azuretypes.StackCloud
-
-		machines, err = azure.Machines(clusterID.InfraID, ic, &pool, string(*rhcosImage), "master", masterUserDataSecretName, capabilities, useImageGallery)
+		machines, controlPlaneMachineSet, err = azure.Machines(clusterID.InfraID, ic, &pool, string(*rhcosImage), "master", masterUserDataSecretName, capabilities, useImageGallery)
 		if err != nil {
 			return errors.Wrap(err, "failed to create master machine objects")
 		}
