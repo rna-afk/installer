@@ -72,6 +72,10 @@ func SetInstallConfigDefaults(c *types.InstallConfig) {
 	}
 	c.ControlPlane.Name = "master"
 	SetMachinePoolDefaults(c.ControlPlane, c.Platform.Name())
+	if c.Bootstrap == nil {
+		c.Bootstrap = &types.MachinePool{}
+	}
+	c.Bootstrap.Name = "bootstrap"
 	if len(c.Compute) == 0 {
 		c.Compute = []types.MachinePool{{Name: "worker"}}
 	}

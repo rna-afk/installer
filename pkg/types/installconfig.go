@@ -116,6 +116,11 @@ type InstallConfig struct {
 	// the cluster.
 	*Networking `json:"networking,omitempty"`
 
+	// Bootstrap is the configuration for the machines that comprise the
+	// bootstrap.
+	// +optional
+	Bootstrap *MachinePool `json:"bootstrap,omitempty"`
+
 	// ControlPlane is the configuration for the machines that comprise the
 	// control plane.
 	// +optional
