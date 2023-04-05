@@ -1,8 +1,6 @@
 package pushclient
 
 import (
-	"net/http"
-
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
@@ -14,21 +12,21 @@ import (
 // to the desired gateway.
 type PushClient struct {
 	URL     string
-	Client  *http.Client
+	Client  push.HTTPDoer
 	JobName string
 }
 
 // Push uses all the configuration settings from the client and pushes to the prometheus
 // aggregation gateway. It takes in an additional list of collectors and pushes all of
 // them to the previously configured url.
-func (p *PushClient) Push(collectors ...prometheus.Collector) error {
+func (p *PushClient) Push(collectors ...prometheus.Collector) (err error) {
 	pushClient := push.New(p.URL, p.JobName).Client(p.Client).Format(expfmt.FmtText)
 
 	for _, value := range collectors {
 		pushClient.Collector(value)
 	}
 
-	err := pushClient.Push()
+	err = pushClient.Push()
 	if err != nil {
 		return errors.Wrap(err, "failed to push metrics")
 	}

@@ -107,7 +107,6 @@ cluster_installation_modification_bootstrap_ignition 10
 	for _, tc := range cases {
 		t.Run(tc.testName, func(t *testing.T) {
 			if tc.enableMetrics {
-				os.Setenv("OPENSHIFT_INSTALL_DISABLE_METRICS", "TRUE")
 				testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 					buf := new(strings.Builder)
 					_, err := io.Copy(buf, req.Body)
@@ -126,10 +125,33 @@ cluster_installation_modification_bootstrap_ignition 10
 			Push(tc.metricName)
 		})
 	}
-}
 
+	os.Unsetenv("OPENSHIFT_INSTALL_METRICS_ENDPOINT")
+	filepath := "metrics.txt"
+	for _, tc := range cases {
+		t.Run(tc.testName, func(t *testing.T) {
+			os.Unsetenv("OPENSHIFT_INSTALL_METRICS_FILEPATH")
+			os.Remove(filepath)
+			if tc.enableMetrics {
+				os.Setenv("OPENSHIFT_INSTALL_METRICS_FILEPATH", filepath)
+			}
+			Initialize()
+			for key, value := range tc.labelValueMap {
+				AddLabelValue(tc.metricName, key, value)
+			}
+			SetValue(tc.metricName, tc.value)
+			Push(tc.metricName)
+			value, err := os.ReadFile(filepath)
+			if tc.enableMetrics {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedOutput, string(value))
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
 func TestPushAll(t *testing.T) {
-	os.Setenv("OPENSHIFT_INSTALL_DISABLE_METRICS", "TRUE")
 	expectedOutput := `# HELP cluster_installation_create This metric keeps track of the count of the number of times the user ran create cluster command in the given OS took the time that is lesser than or equal to the value in the duration label.
 # TYPE cluster_installation_create histogram
 cluster_installation_create_bucket{result="success",le="15"} 1
@@ -191,6 +213,22 @@ cluster_installation_modification_bootstrap_ignition{result="success"} 10
 	testServer.Close()
 	gatherer.enableMetrics = false
 	PushAll()
+
+	os.Unsetenv("OPENSHIFT_INSTALL_METRICS_ENDPOINT")
+	os.Setenv("OPENSHIFT_INSTALL_METRICS_FILEPATH", "metrics.txt")
+	Initialize()
+	AddLabelValue(clusterMetricName, "result", "success")
+	AddLabelValue(DurationAPIMetricName, "result", "success")
+	AddLabelValue(ModificationBootstrapMetricName, "result", "success")
+
+	SetValue(clusterMetricName, 10)
+	SetValue(DurationAPIMetricName, 10)
+	SetValue(ModificationBootstrapMetricName, 10)
+
+	PushAll()
+	value, err := os.ReadFile("metrics.txt")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedOutput, string(value))
 }
 
 func TestMultipleAddLabelValues(t *testing.T) {
@@ -228,4 +266,15 @@ cluster_installation_create_count{os="Linux",result="Success",version="4.7"} 1
 	AddLabelValues(metricName, labelValueMap)
 	SetValue(metricName, 10)
 	Push(metricName)
+
+	os.Unsetenv("OPENSHIFT_INSTALL_METRICS_ENDPOINT")
+	os.Setenv("OPENSHIFT_INSTALL_METRICS_FILEPATH", "metrics.txt")
+	Initialize()
+	AddLabelValues(metricName, labelValueMap)
+	SetValue(metricName, 10)
+	Push(metricName)
+
+	value, err := os.ReadFile("metrics.txt")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedOutput, string(value))
 }

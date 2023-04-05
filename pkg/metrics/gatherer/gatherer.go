@@ -26,6 +26,10 @@ func (g *Gatherer) Initialize() {
 		g.enableMetrics = true
 		g.pushClient = pushclient.PushClient{URL: prometheusURL, Client: &http.Client{}, JobName: "openshift_installer_metrics"}
 	}
+	if value, ok := os.LookupEnv("OPENSHIFT_INSTALL_METRICS_FILEPATH"); ok {
+		g.enableMetrics = true
+		g.pushClient = pushclient.PushClient{Client: &pushclient.HttpFileWriter{Filename: value}, JobName: "openshift_installer_metrics"}
+	}
 	g.metricRegistry = make(map[string]*builder.MetricBuilder)
 
 }

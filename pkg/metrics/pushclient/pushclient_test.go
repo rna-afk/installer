@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -40,6 +41,30 @@ test{test1="test1"} 10
 	pushClient := PushClient{URL: testServer.URL, Client: &http.Client{}, JobName: "installer_metrics"}
 	pushClient.Push(promCollector)
 
+}
+
+func TestPushMetricsToFile(t *testing.T) {
+	promCollector := prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name:        "test",
+			Help:        "test metrics",
+			ConstLabels: map[string]string{"test1": "test1"},
+		},
+	)
+
+	promCollector.Add(10)
+
+	expectedOutput := `# HELP test test metrics
+# TYPE test counter
+test{test1="test1"} 10
+`
+
+	pushClient := PushClient{Client: &HttpFileWriter{Filename: "metrics.txt"}, JobName: "installer_metrics"}
+	err := pushClient.Push(promCollector)
+	assert.NoError(t, err)
+	value, err := os.ReadFile("metrics.txt")
+	assert.NoError(t, err)
+	assert.Equal(t, expectedOutput, string(value))
 }
 
 func TestPushMetricsToAllGateway(t *testing.T) {
