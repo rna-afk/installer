@@ -7,6 +7,9 @@ import (
 var (
 	// Overrides
 	defaultMachineClass = map[string]string{}
+
+	AzurestackMinimumDiskSize int32 = 128
+	AzurestackMaximumDiskSize int32 = 1023
 )
 
 // SetPlatformDefaults sets the defaults for the platform.
