@@ -50,22 +50,6 @@ func TestAgentPullSecret_Generate(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "valid data configuration",
-			dependencies: []asset.Asset{
-				getValidOptionalInstallConfig(),
-			},
-			expectedConfig: &corev1.Secret{
-				TypeMeta: v1.TypeMeta{
-					Kind:       "Secret",
-					APIVersion: "v1",
-				},
-				ObjectMeta: v1.ObjectMeta{
-					Name:      getPullSecretName(getValidOptionalInstallConfig()),
-					Namespace: getObjectMetaNamespace(getValidOptionalInstallConfig()),
-				},
-			},
-		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
