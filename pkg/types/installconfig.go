@@ -154,6 +154,9 @@ type InstallConfig struct {
 	// +optional
 	Publish PublishingStrategy `json:"publish,omitempty"`
 
+	// InternalResources controls the visibility of ingress and apiserver. Defaults to public.
+	InternalResources *InternalResources `json:"internal,omitempty"`
+
 	// FIPS configures https://www.nist.gov/itl/fips-general-information
 	//
 	// +kubebuilder:default=false
@@ -503,6 +506,16 @@ type Capabilities struct {
 	// baselineCapabilitySet. The default is an empty set.
 	// +optional
 	AdditionalEnabledCapabilities []configv1.ClusterVersionCapability `json:"additionalEnabledCapabilities,omitempty"`
+}
+
+// InternalResources is used to control the visibility of the components which can be used to have a mix of public
+// and private resources.
+type InternalResources struct {
+	// Ingress sets the visibility of the created dns resources.
+	Ingress bool `json:"ingress,omitempty"`
+
+	// APIServer sets the visibility of the load balancers servicing the APIserver.
+	APIServer bool `json:"apiserver,omitempty"`
 }
 
 // WorkerMachinePool retrieves the worker MachinePool from InstallConfig.Compute

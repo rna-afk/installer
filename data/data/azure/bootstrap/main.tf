@@ -134,6 +134,20 @@ resource "azurerm_network_interface" "bootstrap" {
         public_ip_id : var.azure_private || ! var.use_ipv6 ? null : azurerm_public_ip.bootstrap_public_ip_v6[0].id,
         include : var.use_ipv6,
       },
+      {
+        primary: false,
+        name: "bootstrap-lb-private-ipv4",
+        ip_address_version: "IPv4",
+        public_ip_id: null,
+        include: var.use_ipv4 && var.azure_lb_private,
+      },
+      {
+        primary: false,
+        name: "bootstrap-lb-private-ipv6",
+        ip_address_version: "IPv4",
+        public_ip_id: null,
+        include: var.use_ipv6 && var.azure_lb_private,
+      },
       ] : {
       primary : ip.primary
       name : ip.name

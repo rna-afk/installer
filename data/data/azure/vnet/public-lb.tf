@@ -5,9 +5,9 @@ locals {
 
 locals {
   // DEBUG: Azure apparently requires dual stack LB for v6
-  need_public_ipv4 = ! var.azure_private || var.azure_outbound_routing_type != "UserDefinedRouting"
+  need_public_ipv4 = ! var.azure_lb_private || var.azure_outbound_routing_type != "UserDefinedRouting"
 
-  need_public_ipv6 = var.use_ipv6 && (! var.azure_private || var.azure_outbound_routing_type != "UserDefinedRouting")
+  need_public_ipv6 = var.use_ipv6 && (! var.azure_lb_private || var.azure_outbound_routing_type != "UserDefinedRouting")
 }
 
 
@@ -113,7 +113,7 @@ resource "azurerm_lb_backend_address_pool" "public_lb_pool_v6" {
 }
 
 resource "azurerm_lb_rule" "public_lb_rule_api_internal_v4" {
-  count = var.use_ipv4 && ! var.azure_private ? 1 : 0
+  count = var.use_ipv4 && ! var.azure_lb_private ? 1 : 0
 
   name                           = "api-internal-v4"
   protocol                       = "Tcp"
@@ -129,7 +129,7 @@ resource "azurerm_lb_rule" "public_lb_rule_api_internal_v4" {
 }
 
 resource "azurerm_lb_rule" "public_lb_rule_api_internal_v6" {
-  count = var.use_ipv6 && ! var.azure_private ? 1 : 0
+  count = var.use_ipv6 && ! var.azure_lb_private ? 1 : 0
 
   name                           = "api-internal-v6"
   protocol                       = "Tcp"
@@ -145,7 +145,7 @@ resource "azurerm_lb_rule" "public_lb_rule_api_internal_v6" {
 }
 
 resource "azurerm_lb_outbound_rule" "public_lb_outbound_rule_v4" {
-  count = var.use_ipv4 && var.azure_private && var.azure_outbound_routing_type != "UserDefinedRouting" ? 1 : 0
+  count = var.use_ipv4 && var.azure_lb_private && var.azure_outbound_routing_type != "UserDefinedRouting" ? 1 : 0
 
   name                    = "outbound-rule-v4"
   loadbalancer_id         = azurerm_lb.public[0].id
@@ -158,7 +158,7 @@ resource "azurerm_lb_outbound_rule" "public_lb_outbound_rule_v4" {
 }
 
 resource "azurerm_lb_outbound_rule" "public_lb_outbound_rule_v6" {
-  count = var.use_ipv6 && var.azure_private && var.azure_outbound_routing_type != "UserDefinedRouting" ? 1 : 0
+  count = var.use_ipv6 && var.azure_lb_private && var.azure_outbound_routing_type != "UserDefinedRouting" ? 1 : 0
 
   name                    = "outbound-rule-v6"
   loadbalancer_id         = azurerm_lb.public[0].id
@@ -171,7 +171,7 @@ resource "azurerm_lb_outbound_rule" "public_lb_outbound_rule_v6" {
 }
 
 resource "azurerm_lb_probe" "public_lb_probe_api_internal" {
-  count = var.azure_private ? 0 : 1
+  count = var.azure_lb_private ? 0 : 1
 
   name                = "api-internal-probe"
   interval_in_seconds = 5

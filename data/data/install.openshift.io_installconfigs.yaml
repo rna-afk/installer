@@ -2054,6 +2054,18 @@ spec:
               - source
               type: object
             type: array
+          internal:
+            description: InternalResources controls the visibility of ingress and
+              apiserver. Defaults to public.
+            properties:
+              apiserver:
+                description: APIServer sets the visibility of the load balancers servicing
+                  the APIserver.
+                type: boolean
+              ingress:
+                description: Ingress sets the visibility of the created dns resources.
+                type: boolean
+            type: object
           kind:
             description: 'Kind is a string value representing the REST resource this
               object represents. Servers may infer this from the endpoint the client

@@ -175,6 +175,11 @@ variable "azure_private" {
   description = "This determines if this is a private cluster or not."
 }
 
+variable "azure_lb_private" {
+  type        = string
+  description = "This determines if we need to set load balancers private."
+}
+
 variable "azure_outbound_routing_type" {
   type    = string
   default = "Loadbalancer"
