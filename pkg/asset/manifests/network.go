@@ -216,14 +216,6 @@ func (no *Networking) generateDefaultNetworkConfigAWSEdge(ic *installconfig.Inst
 				MTU: &ovnKNetworkMtuEdge,
 			},
 		}
-
-	case string(operatorv1.NetworkTypeOpenShiftSDN):
-		defNetCfg = &operatorv1.DefaultNetworkDefinition{
-			Type: operatorv1.NetworkTypeOpenShiftSDN,
-			OpenShiftSDNConfig: &operatorv1.OpenShiftSDNConfig{
-				MTU: &ocpSDNNetworkMtuEdge,
-			},
-		}
 	default:
 		return nil, true, errors.Wrapf(err, "unable to set the DefaultNetworkConfig for %s", netConfig.NetworkType)
 	}

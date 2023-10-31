@@ -12,7 +12,6 @@ import (
 	utilsslice "k8s.io/utils/strings/slices"
 
 	configv1 "github.com/openshift/api/config/v1"
-	operv1 "github.com/openshift/api/operator/v1"
 	"github.com/openshift/installer/pkg/ipnet"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/alibabacloud"
@@ -359,6 +358,15 @@ func TestValidateInstallConfig(t *testing.T) {
 				return c
 			}(),
 			expectedError: `^networking.networkType: Required value: network provider type required$`,
+		},
+		{
+			name: "unsupported network type",
+			installConfig: func() *types.InstallConfig {
+				c := validInstallConfig()
+				c.Networking.NetworkType = "OpenShiftSDN"
+				return c
+			}(),
+			expectedError: `^networking.networkType: Invalid value: "OpenShiftSDN": networkType OpenShiftSDN is currently not supported on OpenShift$`,
 		},
 		{
 			name: "missing service network",
@@ -1293,28 +1301,6 @@ func TestValidateInstallConfig(t *testing.T) {
 			expectedError: `Invalid value: "IPv6": single-stack IPv6 is not supported for this platform`,
 		},
 		{
-			name: "invalid dual-stack configuration, bad plugin",
-			installConfig: func() *types.InstallConfig {
-				c := validInstallConfig()
-				c.Platform = types.Platform{None: &none.Platform{}}
-				c.Networking = validDualStackNetworkingConfig()
-				c.Networking.NetworkType = "OpenShiftSDN"
-				return c
-			}(),
-			expectedError: `IPv6 is not supported for this networking plugin`,
-		},
-		{
-			name: "invalid single-stack IPv6 configuration, bad plugin",
-			installConfig: func() *types.InstallConfig {
-				c := validInstallConfig()
-				c.Platform = types.Platform{None: &none.Platform{}}
-				c.Networking = validIPv6NetworkingConfig()
-				c.Networking.NetworkType = "OpenShiftSDN"
-				return c
-			}(),
-			expectedError: `IPv6 is not supported for this networking plugin`,
-		},
-		{
 			name: "invalid dual-stack configuration, machine has no IPv6",
 			installConfig: func() *types.InstallConfig {
 				c := validInstallConfig()
@@ -1623,38 +1609,6 @@ func TestValidateInstallConfig(t *testing.T) {
 				return c
 			}(),
 			expectedError: "platform.baremetal.apiVIPs: Invalid value: \"2001::1\": IP expected to be in one of the machine networks: 10.0.0.0/16,fe80::/10",
-		},
-		{
-			name: "apivips_v6_on_openshiftsdn",
-			installConfig: func() *types.InstallConfig {
-				c := validInstallConfig()
-				c.Networking = validIPv6NetworkingConfig()
-				c.Networking.NetworkType = string(operv1.NetworkTypeOpenShiftSDN)
-
-				c.Platform = types.Platform{
-					BareMetal: validBareMetalPlatform(),
-				}
-				c.Platform.BareMetal.APIVIPs = []string{"ffd0::1"}
-
-				return c
-			}(),
-			expectedError: "platform.baremetal.apiVIPs: Invalid value: \"ffd0::1\": IPv6 is not supported on OpenShiftSDN",
-		},
-		{
-			name: "ingressvips_v6_on_openshiftsdn",
-			installConfig: func() *types.InstallConfig {
-				c := validInstallConfig()
-				c.Networking = validIPv6NetworkingConfig()
-				c.Networking.NetworkType = string(operv1.NetworkTypeOpenShiftSDN)
-
-				c.Platform = types.Platform{
-					BareMetal: validBareMetalPlatform(),
-				}
-				c.Platform.BareMetal.IngressVIPs = []string{"ffd0::1"}
-
-				return c
-			}(),
-			expectedError: "platform.baremetal.ingressVIPs: Invalid value: \"ffd0::1\": IPv6 is not supported on OpenShiftSDN",
 		},
 		{
 			name: "too_many_apivips",
