@@ -32,6 +32,16 @@ variable "public_lb_pip_v6_fqdn" {
   default = null
 }
 
+variable "public_lb_ip_v4" {
+  type    = string
+  default = null
+}
+
+variable "public_lb_ip_v6" {
+  type    = string
+  default = null
+}
+
 variable "internal_lb_ip_v4_address" {
   type    = string
   default = null

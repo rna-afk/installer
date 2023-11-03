@@ -51,6 +51,16 @@ variable "internal_lb_ipaddress_v6" {
   type = string
 }
 
+variable "external_lb_ip_v4" {
+  description = "External API's LB IP v4 address"
+  type    = string
+}
+
+variable "external_lb_ip_v6" {
+  description = "External API's LB IP v6 address"
+  type    = string
+}
+
 variable "virtual_network_id" {
   description = "The ID for Virtual Network that will be linked to the Private DNS zone."
   type = string
@@ -64,6 +74,11 @@ variable "resource_group_name" {
 variable "private" {
   type = bool
   description = "This value determines if this is a private cluster or not."
+}
+
+variable "lb_private" {
+  type = bool
+  description = "This value determines if the external LB is set to private."
 }
 
 variable "use_ipv4" {

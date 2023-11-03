@@ -65,11 +65,14 @@ module "dns" {
   virtual_network_id              = var.virtual_network_id
   external_lb_fqdn_v4             = var.public_lb_pip_v4_fqdn
   external_lb_fqdn_v6             = var.public_lb_pip_v6_fqdn
+  external_lb_ip_v4               = var.public_lb_ip_v4
+  external_lb_ip_v6               = var.public_lb_ip_v6
   internal_lb_ipaddress_v4        = var.internal_lb_ip_v4_address
   internal_lb_ipaddress_v6        = var.internal_lb_ip_v6_address
   resource_group_name             = var.resource_group_name
   base_domain_resource_group_name = var.azure_base_domain_resource_group_name
   private                         = var.azure_private
+  lb_private                      = var.azure_lb_private
   azure_extra_tags                = var.azure_extra_tags
 
   use_ipv4 = var.use_ipv4

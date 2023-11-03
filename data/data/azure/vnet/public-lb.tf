@@ -12,7 +12,7 @@ locals {
 
 
 resource "azurerm_public_ip" "cluster_public_ip_v4" {
-  count = local.need_public_ipv4 ? 1 : 0
+  count = local.need_public_ipv4 && ! var.azure_lb_private ? 1 : 0
 
   sku                 = "Standard"
   location            = var.azure_region
@@ -25,7 +25,7 @@ resource "azurerm_public_ip" "cluster_public_ip_v4" {
 
 data "azurerm_public_ip" "cluster_public_ip_v4" {
   // DEBUG: Azure apparently requires dual stack LB for v6
-  count = local.need_public_ipv4 ? 1 : 0
+  count = local.need_public_ipv4 && ! var.azure_lb_private ? 1 : 0
 
   name                = azurerm_public_ip.cluster_public_ip_v4[0].name
   resource_group_name = data.azurerm_resource_group.main.name
@@ -33,7 +33,7 @@ data "azurerm_public_ip" "cluster_public_ip_v4" {
 
 
 resource "azurerm_public_ip" "cluster_public_ip_v6" {
-  count = local.need_public_ipv6 ? 1 : 0
+  count = local.need_public_ipv6 && ! var.azure_lb_private ? 1 : 0
 
   ip_version          = "IPv6"
   sku                 = "Standard"
@@ -46,7 +46,7 @@ resource "azurerm_public_ip" "cluster_public_ip_v6" {
 }
 
 data "azurerm_public_ip" "cluster_public_ip_v6" {
-  count = local.need_public_ipv6 ? 1 : 0
+  count = local.need_public_ipv6 && ! var.azure_lb_private ? 1 : 0
 
   name                = azurerm_public_ip.cluster_public_ip_v6[0].name
   resource_group_name = data.azurerm_resource_group.main.name
@@ -64,13 +64,13 @@ resource "azurerm_lb" "public" {
       // DEBUG: Azure apparently requires dual stack LB for external load balancers v6
       {
         name : local.public_lb_frontend_ip_v4_configuration_name,
-        value : local.need_public_ipv4 ? azurerm_public_ip.cluster_public_ip_v4[0].id : null,
+        value : local.need_public_ipv4 && ! var.azure_lb_private ? azurerm_public_ip.cluster_public_ip_v4[0].id : null,
         include : local.need_public_ipv4,
         ipv6 : false,
       },
       {
         name : local.public_lb_frontend_ip_v6_configuration_name,
-        value : local.need_public_ipv6 ? azurerm_public_ip.cluster_public_ip_v6[0].id : null,
+        value : local.need_public_ipv6 && ! var.azure_lb_private ? azurerm_public_ip.cluster_public_ip_v6[0].id : null,
         include : local.need_public_ipv6,
         ipv6 : true,
       },
@@ -84,7 +84,8 @@ resource "azurerm_lb" "public" {
 
     content {
       name                          = frontend_ip_configuration.value.name
-      public_ip_address_id          = frontend_ip_configuration.value.value
+      subnet_id                     = var.azure_lb_private ? local.master_subnet_id : null
+      public_ip_address_id          = !var.azure_lb_private? frontend_ip_configuration.value.value: null
       private_ip_address_version    = frontend_ip_configuration.value.ipv6 ? "IPv6" : "IPv4"
       private_ip_address_allocation = "Dynamic"
     }
@@ -145,7 +146,7 @@ resource "azurerm_lb_rule" "public_lb_rule_api_internal_v6" {
 }
 
 resource "azurerm_lb_outbound_rule" "public_lb_outbound_rule_v4" {
-  count = var.use_ipv4 && var.azure_private && var.azure_outbound_routing_type != "UserDefinedRouting" ? 1 : 0
+  count = var.use_ipv4 && var.azure_private && ! var.azure_lb_private && var.azure_outbound_routing_type != "UserDefinedRouting" ? 1 : 0
 
   name                    = "outbound-rule-v4"
   loadbalancer_id         = azurerm_lb.public[0].id
@@ -158,7 +159,7 @@ resource "azurerm_lb_outbound_rule" "public_lb_outbound_rule_v4" {
 }
 
 resource "azurerm_lb_outbound_rule" "public_lb_outbound_rule_v6" {
-  count = var.use_ipv6 && var.azure_private && var.azure_outbound_routing_type != "UserDefinedRouting" ? 1 : 0
+  count = var.use_ipv6 && var.azure_private && ! var.azure_lb_private && var.azure_outbound_routing_type != "UserDefinedRouting" ? 1 : 0
 
   name                    = "outbound-rule-v6"
   loadbalancer_id         = azurerm_lb.public[0].id

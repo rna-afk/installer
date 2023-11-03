@@ -154,6 +154,9 @@ type InstallConfig struct {
 	// +optional
 	Publish PublishingStrategy `json:"publish,omitempty"`
 
+	// OperatorPublishingStrategy controls the visibility of ingress and apiserver. Defaults to public.
+	OperatorPublishingStrategy *OperatorPublishingStrategy `json:"operatorPublishingStrategy,omitempty"`
+
 	// FIPS configures https://www.nist.gov/itl/fips-general-information
 	//
 	// +kubebuilder:default=false
@@ -310,6 +313,16 @@ type Platform struct {
 	// Nutanix is the configuration used when installing on Nutanix.
 	// +optional
 	Nutanix *nutanix.Platform `json:"nutanix,omitempty"`
+}
+
+// OperatorPublishingStrategy is used to control the visibility of the components which can be used to have a mix of public
+// and private resources.
+type OperatorPublishingStrategy struct {
+	// Ingress sets the visibility of the created dns resources.
+	Ingress bool `json:"ingress,omitempty"`
+
+	// APIServer sets the visibility of the load balancers servicing the APIserver.
+	APIServer bool `json:"apiserver,omitempty"`
 }
 
 // Name returns a string representation of the platform (e.g. "aws" if

@@ -15,11 +15,19 @@ output "ilb_backend_pool_v6_id" {
 }
 
 output "public_lb_pip_v4_fqdn" {
-  value = local.need_public_ipv4 ? data.azurerm_public_ip.cluster_public_ip_v4[0].fqdn : null
+  value = local.need_public_ipv4 && ! var.azure_lb_private ? data.azurerm_public_ip.cluster_public_ip_v4[0].fqdn : null
 }
 
 output "public_lb_pip_v6_fqdn" {
-  value = local.need_public_ipv6 ? data.azurerm_public_ip.cluster_public_ip_v6[0].fqdn : null
+  value = local.need_public_ipv6 && ! var.azure_lb_private ? data.azurerm_public_ip.cluster_public_ip_v6[0].fqdn : null
+}
+
+output "public_lb_ip_v4" {
+  value = local.need_public_ipv4 && var.azure_lb_private ? azurerm_lb.public[0].private_ip_addresses[0] : null
+}
+
+output "public_lb_ip_v6" {
+  value = local.need_public_ipv4 && var.azure_lb_private ? azurerm_lb.public[0].private_ip_addresses[0] : null
 }
 
 output "internal_lb_ip_v4_address" {

@@ -55,6 +55,7 @@ type config struct {
 	ComputeSubnet                           string            `json:"azure_compute_subnet"`
 	PreexistingNetwork                      bool              `json:"azure_preexisting_network"`
 	Private                                 bool              `json:"azure_private"`
+	LBPrivate                               bool              `json:"azure_lb_private"`
 	OutboundType                            string            `json:"azure_outbound_routing_type"`
 	BootstrapIgnitionStub                   string            `json:"azure_bootstrap_ignition_stub"`
 	BootstrapIgnitionURLPlaceholder         string            `json:"azure_bootstrap_ignition_url_placeholder"`
@@ -90,6 +91,7 @@ type TFVarsSources struct {
 	HyperVGeneration                string
 	VMArchitecture                  types.Architecture
 	InfrastructureName              string
+	LBPrivate                       bool
 }
 
 // TFVars generates Azure-specific Terraform variables launching the cluster.
@@ -150,6 +152,8 @@ func TFVars(sources TFVarsSources) ([]byte, error) {
 		Version:   masterConfig.Image.Version,
 	}
 
+	lbPrivate := sources.LBPrivate || sources.Publish == types.InternalPublishingStrategy
+
 	cfg := &config{
 		Auth:                                    sources.Auth,
 		Environment:                             environment,
@@ -165,6 +169,7 @@ func TFVars(sources TFVarsSources) ([]byte, error) {
 		ImageURL:                                sources.ImageURL,
 		ImageRelease:                            sources.ImageRelease,
 		Private:                                 sources.Publish == types.InternalPublishingStrategy,
+		LBPrivate:                               lbPrivate,
 		OutboundType:                            string(sources.OutboundType),
 		ResourceGroupName:                       sources.ResourceGroupName,
 		BaseDomainResourceGroupName:             sources.BaseDomainResourceGroupName,

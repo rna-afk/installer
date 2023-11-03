@@ -70,7 +70,7 @@ resource "azurerm_private_dns_aaaa_record" "api_internal_v6" {
 }
 
 resource "azurerm_dns_cname_record" "api_external_v4" {
-  count = var.private || ! var.use_ipv4 ? 0 : 1
+  count = var.private || var.lb_private || ! var.use_ipv4 ? 0 : 1
 
   name                = local.api_external_name
   zone_name           = var.base_domain
@@ -81,7 +81,7 @@ resource "azurerm_dns_cname_record" "api_external_v4" {
 }
 
 resource "azurerm_dns_cname_record" "api_external_v6" {
-  count = var.private || ! var.use_ipv6 ? 0 : 1
+  count = var.private || var.lb_private || ! var.use_ipv6 ? 0 : 1
 
   name                = "v6-${local.api_external_name}"
   zone_name           = var.base_domain
@@ -91,4 +91,24 @@ resource "azurerm_dns_cname_record" "api_external_v6" {
   tags                = var.azure_extra_tags
 }
 
+resource "azurerm_private_dns_a_record" "api_external_v4" {
+  count = var.use_ipv4 && var.lb_private ? 1 : 0
 
+  name                = "api"
+  zone_name           = azurerm_private_dns_zone.private.name
+  resource_group_name = var.resource_group_name
+  ttl                 = 300
+  records             = [var.external_lb_ip_v4]
+  tags                = var.azure_extra_tags
+}
+
+resource "azurerm_private_dns_aaaa_record" "api_external_v6" {
+  count = var.use_ipv6 && var.lb_private ? 1 : 0
+
+  name                = "api"
+  zone_name           = azurerm_private_dns_zone.private.name
+  resource_group_name = var.resource_group_name
+  ttl                 = 300
+  records             = [var.external_lb_ip_v6]
+  tags                = var.azure_extra_tags
+}
