@@ -70,6 +70,7 @@ module "dns" {
   resource_group_name             = var.resource_group_name
   base_domain_resource_group_name = var.azure_base_domain_resource_group_name
   private                         = var.azure_private
+  lb_private                      = var.azure_lb_private
   azure_extra_tags                = var.azure_extra_tags
 
   use_ipv4 = var.use_ipv4

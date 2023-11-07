@@ -113,7 +113,7 @@ resource "azurerm_lb_backend_address_pool" "public_lb_pool_v6" {
 }
 
 resource "azurerm_lb_rule" "public_lb_rule_api_internal_v4" {
-  count = var.use_ipv4 && ! var.azure_private ? 1 : 0
+  count = var.use_ipv4 && ! var.azure_private && ! var.azure_lb_private ? 1 : 0
 
   name                           = "api-internal-v4"
   protocol                       = "Tcp"
@@ -129,7 +129,7 @@ resource "azurerm_lb_rule" "public_lb_rule_api_internal_v4" {
 }
 
 resource "azurerm_lb_rule" "public_lb_rule_api_internal_v6" {
-  count = var.use_ipv6 && ! var.azure_private ? 1 : 0
+  count = var.use_ipv6 && ! var.azure_private && ! var.azure_lb_private ? 1 : 0
 
   name                           = "api-internal-v6"
   protocol                       = "Tcp"
@@ -227,4 +227,48 @@ resource "azurerm_nat_gateway_public_ip_association" "nat_ip_assoc" {
   count                = var.azure_outbound_routing_type == "NatGateway" ? 1 : 0
   nat_gateway_id       = azurerm_nat_gateway.nat_gw[0].id
   public_ip_address_id = var.use_ipv6 ? azurerm_public_ip.ngw_public_ip_v6[0].id : azurerm_public_ip.ngw_public_ip_v4[0].id
+}
+
+resource "azurerm_lb_rule" "public_lb_rule_api_http_v4" {
+  count = var.use_ipv4 && ! var.azure_private && var.azure_lb_private ? 1 : 0
+
+  name                           = "api-http-v4"
+  protocol                       = "Tcp"
+  backend_address_pool_ids       = [azurerm_lb_backend_address_pool.public_lb_pool_v4[0].id]
+  loadbalancer_id                = azurerm_lb.public[0].id
+  frontend_port                  = 80
+  backend_port                   = 31000
+  frontend_ip_configuration_name = local.public_lb_frontend_ip_v4_configuration_name
+  enable_floating_ip             = false
+  idle_timeout_in_minutes        = 30
+  load_distribution              = "Default"
+  probe_id                       = azurerm_lb_probe.public_lb_probe_api_internal_http[0].id
+}
+
+resource "azurerm_lb_rule" "public_lb_rule_api_http_v6" {
+  count = var.use_ipv6 && ! var.azure_private && var.azure_lb_private ? 1 : 0
+
+  name                           = "api-http-v6"
+  protocol                       = "Tcp"
+  backend_address_pool_ids       = [azurerm_lb_backend_address_pool.public_lb_pool_v6[0].id]
+  loadbalancer_id                = azurerm_lb.public[0].id
+  frontend_port                  = 80
+  backend_port                   = 31000
+  frontend_ip_configuration_name = local.public_lb_frontend_ip_v6_configuration_name
+  enable_floating_ip             = false
+  idle_timeout_in_minutes        = 30
+  load_distribution              = "Default"
+  probe_id                       = azurerm_lb_probe.public_lb_probe_api_internal_http[0].id
+}
+
+resource "azurerm_lb_probe" "public_lb_probe_api_internal_http" {
+  count = var.azure_private || ! var.azure_lb_private ? 0 : 1
+
+  name                = "api-internal-probe-http"
+  interval_in_seconds = 5
+  number_of_probes    = 2
+  loadbalancer_id     = azurerm_lb.public[0].id
+  port                = 31000
+  protocol            = "Http"
+  request_path        = "/readyz"
 }

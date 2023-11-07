@@ -66,6 +66,11 @@ variable "private" {
   description = "This value determines if this is a private cluster or not."
 }
 
+variable "lb_private" {
+  type = bool
+  description = "This value determines if the external LB is set to private."
+}
+
 variable "use_ipv4" {
   type = bool
   description = "This value determines if this is cluster should use IPv4 networking."
