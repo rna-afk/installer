@@ -382,6 +382,11 @@ func (t *TerraformVariables) Generate(parents asset.Parents) error {
 			bootstrapIgnStub = string(shim)
 		}
 
+		lbPrivate := false
+		if installConfig.Config.OperatorPublishingStrategy != nil {
+			lbPrivate = installConfig.Config.OperatorPublishingStrategy.APIServer
+		}
+
 		data, err := azuretfvars.TFVars(
 			azuretfvars.TFVarsSources{
 				Auth:                            auth,
@@ -401,6 +406,7 @@ func (t *TerraformVariables) Generate(parents asset.Parents) error {
 				HyperVGeneration:                hyperVGeneration,
 				VMArchitecture:                  installConfig.Config.ControlPlane.Architecture,
 				InfrastructureName:              clusterID.InfraID,
+				LBPrivate:                       lbPrivate,
 			},
 		)
 		if err != nil {

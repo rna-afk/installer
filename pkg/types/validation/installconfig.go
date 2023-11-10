@@ -155,6 +155,19 @@ func ValidateInstallConfig(c *types.InstallConfig, usingAgentMethod bool) field.
 		}
 	}
 
+	if c.Publish == types.MixedPublishingStrategy {
+		switch platformName := c.Platform.Name(); platformName {
+		case azure.Name:
+		default:
+			allErrs = append(allErrs, field.Invalid(field.NewPath("publish"), c.Publish, fmt.Sprintf("mixed publish strategy is not supported on %q platform", platformName)))
+		}
+		if c.OperatorPublishingStrategy == nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("publish"), c.Publish, "please specify the operator publishing strategy for mixed publish strategy"))
+		}
+	} else if c.OperatorPublishingStrategy != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("operatorPublishingStrategy"), c.Publish, "operator publishing strategy is only allowed with mixed publishing strategy installs"))
+	}
+
 	if c.Capabilities != nil {
 		if c.Capabilities.BaselineCapabilitySet == configv1.ClusterVersionCapabilitySetNone {
 			enabledCaps := sets.New[configv1.ClusterVersionCapability](c.Capabilities.AdditionalEnabledCapabilities...)
@@ -891,6 +904,7 @@ var (
 	validPublishingStrategies = map[types.PublishingStrategy]struct{}{
 		types.ExternalPublishingStrategy: {},
 		types.InternalPublishingStrategy: {},
+		types.MixedPublishingStrategy:    {},
 	}
 
 	validPublishingStrategyValues = func() []string {
