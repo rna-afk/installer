@@ -48,25 +48,10 @@ func InitializeProvider(platform Provider) infrastructure.Provider {
 // for calling functions at different points of the CAPI infrastructure provisioning
 // lifecycle.
 type Provider interface {
-	// PreProvision is called before provisioning using CAPI controllers has begun.
-	// and should be used to create dependencies needed for CAPI provisioning,
-	// such as IAM roles or policies.
-	PreProvision(in PreProvisionInput) error
 
 	// Ignition generates the ignition secrets for bootstrap and control-plane machines
 	// and handles any preconditions for ignition.
 	Ignition(in IgnitionInput) ([]client.Object, error)
-
-	// InfrastructureReady is called once cluster.Spec.ControlPlaneEndpoint.IsValid()
-	// returns true, typically after load balancers have been provisioned. It can be used
-	// to create DNS records.
-	InfrastructureReady(in InfrastructureReadyInput) error
-}
-
-// PreProvisionInput collects the args to be passed to the PreProvision call.
-type PreProvisionInput struct {
-	ClusterID     string
-	InstallConfig *installconfig.InstallConfig
 }
 
 // IgnitionInput collects the args to be passed to the Ignition call.
@@ -76,8 +61,32 @@ type IgnitionInput struct {
 	InstallConfig                   *installconfig.InstallConfig
 }
 
-// InfrastructureReadyInput collects the args to be passed to the InfrastructureReady call.
-type InfrastructureReadyInput struct {
+// PreProvider can be implemented by cloud platforms to perform functions before
+// CAPI provisioning has begun.
+type PreProvider interface {
+	// PreProvision is called before provisioning using CAPI controllers has begun
+	// and should be used to create dependencies needed for CAPI provisioning,
+	// such as IAM roles or policies.
+	PreProvision(in PreProvisionInput) error
+}
+
+// PreProvisionInput collects the args to be passed to the PreProvision call.
+type PreProvisionInput struct {
+	ClusterID     string
+	InstallConfig *installconfig.InstallConfig
+}
+
+// InfraReadyProvider can be implemented by cloud platforms to perform functions
+// after CAPI has provisioned infrastructure.
+type InfraReadyProvider interface {
+	// InfraReady is called once cluster.Status.InfrastructureReady
+	// is true, typically after load balancers have been provisioned. It can be used
+	// to create DNS records.
+	InfraReady(in InfraReadyInput) error
+}
+
+// InfraReadyInput collects the args to be passed to the InfraReady call.
+type InfraReadyInput struct {
 	// Client is the client for kube-apiserver running locally on the installer host.
 	// It can be used to read the spec and status of the local CAPI resources.
 	Client        client.Client
@@ -111,8 +120,11 @@ func (i InfraProvider) Provision(dir string, parents asset.Parents) ([]*asset.Fi
 		ClusterID:     clusterID.InfraID,
 		InstallConfig: installConfig,
 	}
-	if err := i.capiProvider.PreProvision(preProvisionInput); err != nil {
-		return fileList, fmt.Errorf("failed during pre-provisioning: %w", err)
+
+	if p, ok := i.capiProvider.(PreProvider); ok {
+		if err := p.PreProvision(preProvisionInput); err != nil {
+			return fileList, fmt.Errorf("failed during pre-provisioning: %w", err)
+		}
 	}
 
 	ignInput := IgnitionInput{
@@ -206,12 +218,15 @@ func (i InfraProvider) Provision(dir string, parents asset.Parents) ([]*asset.Fi
 		}
 	}
 
-	infrastructureReadyInput := InfrastructureReadyInput{
+	infraReadyInput := InfraReadyInput{
 		Client:        cl,
 		InstallConfig: installConfig,
 	}
-	if err := i.capiProvider.InfrastructureReady(infrastructureReadyInput); err != nil {
-		return fileList, fmt.Errorf("failed provisioning resources after control plane available: %w", err)
+
+	if p, ok := i.capiProvider.(InfraReadyProvider); ok {
+		if err := p.InfraReady(infraReadyInput); err != nil {
+			return fileList, fmt.Errorf("failed provisioning resources after control plane available: %w", err)
+		}
 	}
 
 	// For each manifest we created, retrieve it and store it in the asset.
@@ -320,9 +335,9 @@ func (d DefaultCAPIProvider) Ignition(in IgnitionInput) ([]client.Object, error)
 	return ignSecrets, nil
 }
 
-// InfrastructureReady provides the default CAPI provider's implementation of the InfrastructureReady
+// InfraReady provides the default CAPI provider's implementation of the InfraReady
 // function. It does nothing.
-func (d DefaultCAPIProvider) InfrastructureReady(in InfrastructureReadyInput) error {
-	logrus.Debugf("Default InfrastructureReady, doing nothing")
+func (d DefaultCAPIProvider) InfraReady(in InfraReadyInput) error {
+	logrus.Debugf("Default InfraReady, doing nothing")
 	return nil
 }
