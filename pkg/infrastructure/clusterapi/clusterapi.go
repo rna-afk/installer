@@ -57,10 +57,10 @@ type Provider interface {
 	// and handles any preconditions for ignition.
 	Ignition(in IgnitionInput) ([]client.Object, error)
 
-	// ControlPlaneAvailable is called once cluster.Spec.ControlPlaneEndpoint.IsValid()
+	// InfrastructureReady is called once cluster.Spec.ControlPlaneEndpoint.IsValid()
 	// returns true, typically after load balancers have been provisioned. It can be used
 	// to create DNS records.
-	ControlPlaneAvailable(in ControlPlaneAvailableInput) error
+	InfrastructureReady(in InfrastructureReadyInput) error
 }
 
 // PreProvisionInput collects the args to be passed to the PreProvision call.
@@ -76,8 +76,8 @@ type IgnitionInput struct {
 	InstallConfig                   *installconfig.InstallConfig
 }
 
-// ControlPlaneAvailableInput collects the args to be passed to the ControlPlaneAvailable call.
-type ControlPlaneAvailableInput struct {
+// InfrastructureReadyInput collects the args to be passed to the InfrastructureReady call.
+type InfrastructureReadyInput struct {
 	// Client is the client for kube-apiserver running locally on the installer host.
 	// It can be used to read the spec and status of the local CAPI resources.
 	Client        client.Client
@@ -194,7 +194,7 @@ func (i InfraProvider) Provision(dir string, parents asset.Parents) ([]*asset.Fi
 				return false, err
 			}
 			cluster = c
-			return cluster.Spec.ControlPlaneEndpoint.IsValid(), nil
+			return cluster.Status.InfrastructureReady, nil
 		}); err != nil {
 			return fileList, err
 		}
@@ -206,11 +206,11 @@ func (i InfraProvider) Provision(dir string, parents asset.Parents) ([]*asset.Fi
 		}
 	}
 
-	controlPlaneAvailableInput := ControlPlaneAvailableInput{
+	infrastructureReadyInput := InfrastructureReadyInput{
 		Client:        cl,
 		InstallConfig: installConfig,
 	}
-	if err := i.capiProvider.ControlPlaneAvailable(controlPlaneAvailableInput); err != nil {
+	if err := i.capiProvider.InfrastructureReady(infrastructureReadyInput); err != nil {
 		return fileList, fmt.Errorf("failed provisioning resources after control plane available: %w", err)
 	}
 
@@ -320,9 +320,9 @@ func (d DefaultCAPIProvider) Ignition(in IgnitionInput) ([]client.Object, error)
 	return ignSecrets, nil
 }
 
-// ControlPlaneAvailable provides the default CAPI provider's implementation of the ControlPlaneAvailable
+// InfrastructureReady provides the default CAPI provider's implementation of the InfrastructureReady
 // function. It does nothing.
-func (d DefaultCAPIProvider) ControlPlaneAvailable(in ControlPlaneAvailableInput) error {
-	logrus.Debugf("Default ControlPlaneAvailable, doing nothing")
+func (d DefaultCAPIProvider) InfrastructureReady(in InfrastructureReadyInput) error {
+	logrus.Debugf("Default InfrastructureReady, doing nothing")
 	return nil
 }
