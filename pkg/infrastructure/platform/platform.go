@@ -9,6 +9,8 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/installer/pkg/infrastructure"
 	awsinfra "github.com/openshift/installer/pkg/infrastructure/aws"
+	azurecapi "github.com/openshift/installer/pkg/infrastructure/azure"
+	"github.com/openshift/installer/pkg/infrastructure/clusterapi"
 	"github.com/openshift/installer/pkg/terraform"
 	"github.com/openshift/installer/pkg/terraform/stages/alibabacloud"
 	"github.com/openshift/installer/pkg/terraform/stages/aws"
@@ -50,6 +52,9 @@ func ProviderForPlatform(platform string, fg featuregates.FeatureGate) (infrastr
 		}
 		return terraform.InitializeProvider(aws.PlatformStages), nil
 	case azuretypes.Name:
+		if fg.Enabled(configv1.FeatureGateClusterAPIInstall) {
+			return clusterapi.InitializeProvider(azurecapi.Provider{}), nil
+		}
 		return terraform.InitializeProvider(azure.PlatformStages), nil
 	case azuretypes.StackTerraformName:
 		return terraform.InitializeProvider(azure.StackPlatformStages), nil
