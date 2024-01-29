@@ -16,10 +16,14 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/installer/pkg/asset"
 	"github.com/openshift/installer/pkg/asset/installconfig"
+	icazure "github.com/openshift/installer/pkg/asset/installconfig/azure"
 	"github.com/openshift/installer/pkg/asset/machines/aws"
+	"github.com/openshift/installer/pkg/asset/machines/azure"
 	"github.com/openshift/installer/pkg/asset/manifests/capiutils"
 	"github.com/openshift/installer/pkg/asset/rhcos"
 	awsdefaults "github.com/openshift/installer/pkg/types/aws/defaults"
+	azuretypes "github.com/openshift/installer/pkg/types/azure"
+	azuredefaults "github.com/openshift/installer/pkg/types/azure/defaults"
 )
 
 // GenerateClusterAPI generates manifests for target cluster.
@@ -170,6 +174,76 @@ func GenerateClusterAPI(ctx context.Context, installConfig *installconfig.Instal
 			Object: bootstrapMachine,
 		})
 	case "azure":
+		mpool := defaultAzureMachinePoolPlatform()
+		mpool.InstanceType = azuredefaults.ControlPlaneInstanceType(
+			installConfig.Config.Platform.Azure.CloudName,
+			installConfig.Config.Platform.Azure.Region,
+			installConfig.Config.ControlPlane.Architecture,
+		)
+		mpool.OSDisk.DiskSizeGB = 1024
+		if installConfig.Config.Platform.Azure.CloudName == azuretypes.StackCloud {
+			mpool.OSDisk.DiskSizeGB = azuredefaults.AzurestackMinimumDiskSize
+		}
+		mpool.Set(ic.Platform.Azure.DefaultMachinePlatform)
+		mpool.Set(pool.Platform.Azure)
+
+		session, err := installConfig.Azure.Session()
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch session: %v", err)
+		}
+		client := icazure.NewClient(session)
+
+		if len(mpool.Zones) == 0 {
+			// if no azs are given we set to []string{""} for convenience over later operations.
+			// It means no-zoned for the machine API
+			mpool.Zones = []string{""}
+		}
+		if len(mpool.Zones) == 0 {
+			azs, err := client.GetAvailabilityZones(context.TODO(), ic.Platform.Azure.Region, mpool.InstanceType)
+			if err != nil {
+				return nil, fmt.Errorf("failed to fetch availability zones: %v", err)
+			}
+			mpool.Zones = azs
+			if len(azs) == 0 {
+				// if no azs are given we set to []string{""} for convenience over later operations.
+				// It means no-zoned for the machine API
+				mpool.Zones = []string{""}
+			}
+		}
+		// client.GetControlPlaneSubnet(context.TODO(), ic.Platform.Azure.ResourceGroupName, ic.Platform.Azure.VirtualNetwork, )
+
+		if mpool.OSImage.Publisher != "" {
+			img, ierr := client.GetMarketplaceImage(context.TODO(), ic.Platform.Azure.Region, mpool.OSImage.Publisher, mpool.OSImage.Offer, mpool.OSImage.SKU, mpool.OSImage.Version)
+			if ierr != nil {
+				return nil, fmt.Errorf("failed to fetch marketplace image: %w", ierr)
+			}
+			// Publisher is case-sensitive and matched against exactly. Also the
+			// Plan's publisher might not be exactly the same as the Image's
+			// publisher
+			if img.Plan != nil && img.Plan.Publisher != nil {
+				mpool.OSImage.Publisher = *img.Plan.Publisher
+			}
+		}
+		pool.Platform.Azure = &mpool
+		subnet := ic.Azure.ControlPlaneSubnet
+
+		capabilities, err := client.GetVMCapabilities(context.TODO(), mpool.InstanceType, installConfig.Config.Platform.Azure.Region)
+		if err != nil {
+			return nil, err
+		}
+		hyperVGen, err := icazure.GetHyperVGenerationVersion(capabilities, "")
+		if err != nil {
+			return nil, err
+		}
+		useImageGallery := installConfig.Azure.CloudName != azuretypes.StackCloud
+		masterUserDataSecretName := "master-user-data"
+
+		azureMachines, err := azure.GenerateMachines(installConfig.Config.Platform.Azure, &pool, masterUserDataSecretName, clusterID.InfraID, "master", capabilities, useImageGallery, installConfig.Config.Platform.Azure.UserTags, hyperVGen, subnet, ic.Azure.ResourceGroupName)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create master machine objects")
+		}
+
+		result.Manifests = append(result.Manifests, azureMachines...)
 	default:
 		// TODO: support other platforms
 	}

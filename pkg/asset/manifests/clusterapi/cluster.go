@@ -107,7 +107,7 @@ func (c *Cluster) Generate(dependencies asset.Parents) error {
 		var err error
 		out, err = azure.GenerateClusterAssets(installConfig, clusterID)
 		if err != nil {
-			return errors.Wrap(err, "failed to generate AWS manifests")
+			return errors.Wrap(err, "failed to generate Azure manifests")
 		}
 	default:
 		return fmt.Errorf("unsupported platform %q", platform)
