@@ -3,6 +3,8 @@ package azure
 import (
 	"fmt"
 	"strings"
+
+	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 )
 
 // aro is a setting to enable aro-only modifications
@@ -100,6 +102,10 @@ type Platform struct {
 
 	// CustomerManagedKey has the keys needed to encrypt the storage account.
 	CustomerManagedKey *CustomerManagedKey `json:"customerManagedKey,omitempty"`
+
+	// BootDiagnostics enables the diagnostics for all the machines installed in Azure.
+	// +optional
+	BootDiagnostics *BootDiagnostics `json:"bootDiagnostics,omitempty`
 }
 
 // KeyVault defines an Azure Key Vault.
@@ -119,6 +125,20 @@ type CustomerManagedKey struct {
 	KeyVault KeyVault `json:"keyVault,omitempty"`
 	// UserAssignedIdentityKey is the name of the user identity that has access to the managed key.
 	UserAssignedIdentityKey string `json:"userAssignedIdentityKey,omitempty"`
+}
+
+// BootDiagnostics defines the enablement of collection of machine diagnostics.
+type BootDiagnostics struct {
+	// DiagnosticsType sets the value of the method of collection.
+	// +kubebuilder:default=UserManaged
+	// +kubebuilder:validation:Enum="";UserManaged;Managed;Disabled
+	DiagnosticsType capz.BootDiagnosticsStorageAccountType
+
+	// Bootstrap sets the diagnostics value for the bootstrap machines.
+	Bootstrap bool
+
+	// ControlPlane sets the diagnostics value for the control plane machines.
+	ControlPlane bool
 }
 
 // CloudEnvironment is the name of the Azure cloud environment

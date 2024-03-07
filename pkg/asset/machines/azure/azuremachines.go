@@ -3,7 +3,9 @@ package azure
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -105,6 +107,34 @@ func GenerateMachines(platform *azure.Platform, pool *types.MachinePool, userDat
 		}
 	}
 
+	storageAccountName := fmt.Sprintf("cluster%s", randomString(5))
+	var diagnostics *capz.Diagnostics
+	if platform.BootDiagnostics != nil && platform.BootDiagnostics.DiagnosticsType != capz.DisabledDiagnosticsStorage {
+		if platform.BootDiagnostics.DiagnosticsType == capz.ManagedDiagnosticsStorage {
+			diagnostics = &capz.Diagnostics{
+				Boot: &capz.BootDiagnostics{
+					StorageAccountType: capz.ManagedDiagnosticsStorage,
+				},
+			}
+		}
+		diagnostics = &capz.Diagnostics{
+			Boot: &capz.BootDiagnostics{
+				StorageAccountType: capz.UserManagedDiagnosticsStorage,
+				UserManaged: &capz.UserManagedBootDiagnostics{
+					StorageAccountURI: fmt.Sprintf("subscriptions/%s/resourceGroups/%s/providers/Microsoft.Storage/storageAccounts/%s", mpool.SubscriptionID, mpool.ResourceGroup, storageAccountName),
+				},
+			},
+		}
+	}
+	var bootstrapDiagnostics *capz.Diagnostics
+	var controlPlaneDiagnostics *capz.Diagnostics
+	if platform.BootDiagnostics.Bootstrap {
+		bootstrapDiagnostics = diagnostics
+	}
+	if platform.BootDiagnostics.ControlPlane {
+		controlPlaneDiagnostics = diagnostics
+	}
+
 	var result []*asset.RuntimeFile
 	for idx := int64(0); idx < total; idx++ {
 		zone := mpool.Zones[int(idx)%len(mpool.Zones)]
@@ -129,6 +159,7 @@ func GenerateMachines(platform *azure.Platform, pool *types.MachinePool, userDat
 				AdditionalCapabilities: additionalCapabilities,
 				AllocatePublicIP:       false,
 				SecurityProfile:        securityProfile,
+				Diagnostics:            controlPlaneDiagnostics,
 			},
 		}
 		result = append(result, &asset.RuntimeFile{
@@ -184,6 +215,7 @@ func GenerateMachines(platform *azure.Platform, pool *types.MachinePool, userDat
 			AllocatePublicIP:       true,
 			AdditionalCapabilities: additionalCapabilities,
 			SecurityProfile:        securityProfile,
+			Diagnostics:            bootstrapDiagnostics,
 		},
 	}
 
@@ -241,4 +273,17 @@ func CapzTagsFromUserTags(clusterID string, usertags map[string]string) (capz.Ta
 		tags[k] = usertags[k]
 	}
 	return tags, nil
+}
+
+func randomString(length int) string {
+	source := rand.NewSource(time.Now().UnixNano())
+	rng := rand.New(source)
+	chars := "abcdefghijklmnopqrstuvwxyz0123456789"
+
+	s := make([]byte, length)
+	for i := range s {
+		s[i] = chars[rng.Intn(len(chars))]
+	}
+
+	return string(s)
 }
