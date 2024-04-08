@@ -1,8 +1,6 @@
 package azure
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,13 +35,18 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 		File:   asset.File{Filename: "00_azure-namespace.yaml"},
 	})
 
+	resourceGroup := installConfig.Config.Platform.Azure.ClusterResourceGroupName(clusterID.InfraID)
+	if installConfig.Config.Azure.ResourceGroupName != "" {
+		resourceGroup = installConfig.Config.Azure.ResourceGroupName
+	}
+
 	azureCluster := &capz.AzureCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterID.InfraID,
 			Namespace: capiutils.Namespace,
 		},
 		Spec: capz.AzureClusterSpec{
-			ResourceGroup: fmt.Sprintf("%s-rg", clusterID.InfraID),
+			ResourceGroup: resourceGroup,
 			AzureClusterClassSpec: capz.AzureClusterClassSpec{
 				SubscriptionID:   session.Credentials.SubscriptionID,
 				Location:         installConfig.Config.Azure.Region,
@@ -55,24 +58,12 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 				},
 			},
 			NetworkSpec: capz.NetworkSpec{
-				NetworkClassSpec: capz.NetworkClassSpec{
-					PrivateDNSZoneName: installConfig.Config.ClusterDomain(),
-				},
 				Vnet: capz.VnetSpec{
 					ID: installConfig.Config.Azure.VirtualNetwork,
 					VnetClassSpec: capz.VnetClassSpec{
 						CIDRBlocks: []string{
 							mainCIDR.String(),
 						},
-					},
-				},
-				APIServerLB: capz.LoadBalancerSpec{
-					Name: fmt.Sprintf("%s-internal", clusterID.InfraID),
-					BackendPool: capz.BackendPool{
-						Name: fmt.Sprintf("%s-internal", clusterID.InfraID),
-					},
-					LoadBalancerClassSpec: capz.LoadBalancerClassSpec{
-						Type: capz.Internal,
 					},
 				},
 				Subnets: capz.Subnets{
@@ -98,7 +89,6 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 			},
 		},
 	}
-	azureCluster.SetGroupVersionKind(capz.GroupVersion.WithKind("AzureCluster"))
 	manifests = append(manifests, &asset.RuntimeFile{
 		Object: azureCluster,
 		File:   asset.File{Filename: "02_azure-cluster.yaml"},
@@ -113,7 +103,6 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 			"clientSecret": session.Credentials.ClientSecret,
 		},
 	}
-	azureClientSecret.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Secret"))
 	manifests = append(manifests, &asset.RuntimeFile{
 		Object: azureClientSecret,
 		File:   asset.File{Filename: "01_azure-client-secret.yaml"},
@@ -135,7 +124,6 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 			TenantID: session.Credentials.TenantID,
 		},
 	}
-	id.SetGroupVersionKind(capz.GroupVersion.WithKind("AzureClusterIdentity"))
 	manifests = append(manifests, &asset.RuntimeFile{
 		Object: id,
 		File:   asset.File{Filename: "01_azure-cluster-controller-identity-default.yaml"},
