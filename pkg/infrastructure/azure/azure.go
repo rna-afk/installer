@@ -222,6 +222,74 @@ func (p *Provider) PreProvision(ctx context.Context, in clusterapi.PreProvisionI
 	if err != nil {
 		return fmt.Errorf("failed to create role assignment: %w", err)
 	}
+	// Creating nsg and route table in installer resource group if existing vnet is provided.
+	// if in.InstallConfig.Config.Azure.VirtualNetwork != "" {
+	// 	sourceAddressPrefix := "*"
+	// 	if in.InstallConfig.Config.Publish == types.InternalPublishingStrategy {
+	// 		sourceAddressPrefix = capiutils.CIDRFromInstallConfig(in.InstallConfig).String()
+	// 	}
+	// 	networkClientFactory, err := armnetwork.NewClientFactory(subscriptionID, tokenCredential, nil)
+	// 	if err != nil {
+	// 		return fmt.Errorf("failed to create azure network factory: %w", err)
+	// 	}
+	// 	securityGroupName := in.InstallConfig.Config.Platform.Azure.NetworkSecurityGroupName(in.InfraID)
+	// 	securityGroupsClient := networkClientFactory.NewSecurityGroupsClient()
+	// 	pollerResp, err := securityGroupsClient.BeginCreateOrUpdate(
+	// 		ctx,
+	// 		resourceGroupName,
+	// 		securityGroupName,
+	// 		armnetwork.SecurityGroup{
+	// 			Location: to.Ptr(platform.Region),
+	// 			Tags:     tags,
+	// 			Properties: &armnetwork.SecurityGroupPropertiesFormat{
+	// 				SecurityRules: []*armnetwork.SecurityRule{
+	// 					{
+	// 						Name: to.Ptr("apiserver_in"),
+	// 						Properties: &armnetwork.SecurityRulePropertiesFormat{
+	// 							Protocol:                 to.Ptr(armnetwork.SecurityRuleProtocolTCP),
+	// 							SourceAddressPrefix:      to.Ptr(sourceAddressPrefix),
+	// 							SourcePortRange:          to.Ptr("*"),
+	// 							DestinationAddressPrefix: to.Ptr("*"),
+	// 							DestinationPortRange:     to.Ptr("6443"),
+	// 							Access:                   to.Ptr(armnetwork.SecurityRuleAccessAllow),
+	// 							Direction:                to.Ptr(armnetwork.SecurityRuleDirectionInbound),
+	// 							Priority:                 to.Ptr[int32](101),
+	// 						},
+	// 					},
+	// 				},
+	// 			},
+	// 		},
+	// 		nil)
+
+	// 	if err != nil {
+	// 		return fmt.Errorf("failed to create network security group: %w", err)
+	// 	}
+	// 	nsg, err := pollerResp.PollUntilDone(ctx, nil)
+	// 	if err != nil {
+	// 		return fmt.Errorf("failed to create network security group: %w", err)
+	// 	}
+	// 	routeTableName := fmt.Sprintf("%s-node-routetable", in.InfraID)
+	// 	routeTableClient := networkClientFactory.NewRouteTablesClient()
+	// 	resp, err := routeTableClient.BeginCreateOrUpdate(
+	// 		ctx,
+	// 		resourceGroupName,
+	// 		routeTableName,
+	// 		armnetwork.RouteTable{
+	// 			Location: to.Ptr(platform.Region),
+	// 			Tags:     tags,
+	// 		},
+	// 		nil)
+
+	// 	if err != nil {
+	// 		return fmt.Errorf("failed to create network route table: %w", err)
+	// 	}
+	// 	routeTable, err := resp.PollUntilDone(ctx, nil)
+	// 	if err != nil {
+	// 		return fmt.Errorf("failed to create network route table: %w", err)
+	// 	}
+	// 	logrus.Infof("routeTable=%s", *routeTable.ID)
+	// 	logrus.Debugf("nsg=%s", *nsg.ID)
+	// }
 
 	return nil
 }

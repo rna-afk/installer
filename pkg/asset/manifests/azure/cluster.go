@@ -1,9 +1,11 @@
 package azure
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,8 +43,23 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 
 	resourceGroup := installConfig.Config.Platform.Azure.ClusterResourceGroupName(clusterID.InfraID)
 	controlPlaneSubnet := installConfig.Config.Platform.Azure.ControlPlaneSubnetName(clusterID.InfraID)
-	networkSecurityGroup := installConfig.Config.Platform.Azure.NetworkSecurityGroupName(clusterID.InfraID)
 	computeSubnet := installConfig.Config.Platform.Azure.ComputeSubnetName(clusterID.InfraID)
+	networkSecurityGroup := installConfig.Config.Platform.Azure.NetworkSecurityGroupName(clusterID.InfraID)
+	networkResourceGroup := installConfig.Config.Platform.Azure.NetworkResourceGroupName
+
+	networkClientFactory, err := armnetwork.NewClientFactory(session.Credentials.SubscriptionID, session.TokenCreds, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create azure network factory: %w", err)
+	}
+
+	vnetID := ""
+	if installConfig.Config.Azure.VirtualNetwork != "" {
+		vnet, err := networkClientFactory.NewVirtualNetworksClient().Get(context.TODO(), networkResourceGroup, installConfig.Config.Azure.VirtualNetwork, &armnetwork.VirtualNetworksClientGetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get the existing vnet provided: %w", err)
+		}
+		vnetID = *vnet.ID
+	}
 
 	securityGroup := capz.SecurityGroup{
 		Name: networkSecurityGroup,
@@ -62,7 +79,6 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 			},
 		},
 	}
-
 	azureCluster := &capz.AzureCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterID.InfraID,
@@ -86,7 +102,7 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 					PrivateDNSZoneName: installConfig.Config.ClusterDomain(),
 				},
 				Vnet: capz.VnetSpec{
-					ID: installConfig.Config.Azure.VirtualNetwork,
+					ID: vnetID,
 					VnetClassSpec: capz.VnetClassSpec{
 						CIDRBlocks: []string{
 							mainCIDR.String(),
