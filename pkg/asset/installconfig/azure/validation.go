@@ -711,8 +711,9 @@ func validateResourceGroup(client API, fieldPath *field.Path, platform *aztypes.
 		allErrs = append(allErrs, field.Invalid(fieldPath.Child("resourceGroupName"), platform.ResourceGroupName, fmt.Sprintf("resource group has conflicting tags %s", strings.Join(conflictingTagKeys, ", "))))
 	}
 
+	managedBy := to.String(group.ManagedBy)
 	// ARO provisions Azure resources before resolving the asset graph.
-	if !platform.IsARO() {
+	if managedBy != "ARO" {
 		ids, err := client.ListResourceIDsByGroup(context.TODO(), platform.ResourceGroupName)
 		if err != nil {
 			return append(allErrs, field.InternalError(fieldPath.Child("resourceGroupName"), fmt.Errorf("failed to list resources in the resource group: %w", err)))
