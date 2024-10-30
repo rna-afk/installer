@@ -6,6 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 
 	"github.com/openshift/installer/pkg/types/azure"
 	"github.com/openshift/installer/pkg/types/azure/defaults"
@@ -78,6 +79,12 @@ func ValidateMachinePool(p *azure.MachinePool, poolName string, platform *azure.
 			allErrs = append(allErrs,
 				field.NotSupported(fldPath.Child("acceleratedNetworking"),
 					p.VMNetworkingType, acceleratedNetworkingOptions.List()))
+		}
+	}
+
+	if p.BootDiagnostics != nil {
+		if p.BootDiagnostics.Type != capz.UserManagedDiagnosticsStorage && p.BootDiagnostics.StorageAccountURI != "" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("bootDiagnostics"), p.BootDiagnostics.StorageAccountURI, "cannot specify storage URI if type is set to UserManaged"))
 		}
 	}
 
