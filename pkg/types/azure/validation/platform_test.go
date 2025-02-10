@@ -41,11 +41,13 @@ func validCustomerManagedKeys() *azure.Platform {
 }
 
 func TestValidatePlatform(t *testing.T) {
+	trueVar := true
 	cases := []struct {
 		name     string
 		platform *azure.Platform
 		wantSkip func(p *azure.Platform) bool
 		expected string
+		isAro    *bool
 	}{
 		{
 			name: "invalid region",
@@ -58,11 +60,6 @@ func TestValidatePlatform(t *testing.T) {
 		},
 		{
 			name: "invalid baseDomainResourceGroupName",
-			wantSkip: func(p *azure.Platform) bool {
-				// This test case doesn't apply to ARO
-				// so we want to skip it when run tests for ARO build
-				return p.IsARO()
-			},
 			platform: func() *azure.Platform {
 				p := validPlatform()
 				p.BaseDomainResourceGroupName = ""
@@ -71,12 +68,8 @@ func TestValidatePlatform(t *testing.T) {
 			expected: `^test-path\.baseDomainResourceGroupName: Required value: baseDomainResourceGroupName is the resource group name where the azure dns zone is deployed$`,
 		},
 		{
-			name: "do not require baseDomainResourceGroupName on ARO",
-			wantSkip: func(p *azure.Platform) bool {
-				// This is a ARO-specific test case
-				// so want to skip when running non-ARO builds
-				return !p.IsARO()
-			},
+			name:  "do not require baseDomainResourceGroupName on ARO",
+			isAro: &trueVar,
 			platform: func() *azure.Platform {
 				p := validPlatform()
 				p.BaseDomainResourceGroupName = ""
@@ -251,8 +244,11 @@ func TestValidatePlatform(t *testing.T) {
 			if tc.wantSkip != nil && tc.wantSkip(tc.platform) {
 				t.Skip()
 			}
-
-			err := ValidatePlatform(tc.platform, types.ExternalPublishingStrategy, field.NewPath("test-path"), &ic).ToAggregate()
+			var aro bool
+			if tc.isAro != nil {
+				aro = true
+			}
+			err := ValidatePlatform(tc.platform, types.ExternalPublishingStrategy, field.NewPath("test-path"), &ic, aro).ToAggregate()
 			if tc.expected == "" {
 				assert.NoError(t, err)
 			} else {

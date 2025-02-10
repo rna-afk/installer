@@ -7,14 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/utils/ptr"
-
 	azres "github.com/Azure/azure-sdk-for-go/profiles/2018-03-01/resources/mgmt/resources"
 	azsubs "github.com/Azure/azure-sdk-for-go/profiles/2018-03-01/resources/mgmt/subscriptions"
 	aznetwork "github.com/Azure/azure-sdk-for-go/profiles/2020-09-01/network/mgmt/network"
 	azenc "github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
 	azmarketplace "github.com/Azure/azure-sdk-for-go/profiles/latest/marketplaceordering/mgmt/marketplaceordering"
 	"github.com/Azure/go-autorest/autorest/to"
+	"k8s.io/utils/ptr"
 )
 
 //go:generate mockgen -source=./client.go -destination=mock/azureclient_generated.go -package=mock
@@ -243,6 +242,9 @@ func (c *Client) GetGroup(ctx context.Context, groupName string) (*azres.Group, 
 	return &res, nil
 }
 
+// CheckIfARO checks the existing resource group provided for the managed by field
+// to see if the value set is to ARO. If set, the installer will ignore multiple
+// checks/validations and perform ARO specific tasks.
 func (c *Client) CheckIfARO(ctx context.Context, groupName string) (bool, error) {
 	if aro != nil {
 		return *aro, nil

@@ -139,6 +139,7 @@ func (a *InstallConfig) finishAWS() error {
 }
 
 func (a *InstallConfig) finish(ctx context.Context, filename string) error {
+	var aro bool
 	if a.Config.AWS != nil {
 		a.AWS = aws.NewMetadata(a.Config.Platform.AWS.Region, a.Config.Platform.AWS.Subnets, a.Config.AWS.ServiceEndpoints)
 		if err := a.finishAWS(); err != nil {
@@ -147,6 +148,17 @@ func (a *InstallConfig) finish(ctx context.Context, filename string) error {
 	}
 	if a.Config.Azure != nil {
 		a.Azure = icazure.NewMetadata(a.Config.Azure.CloudName, a.Config.Azure.ARMEndpoint)
+		if a.Config.Platform.Azure.ResourceGroupName != "" {
+			client, err := a.Azure.Client()
+			if err != nil {
+				return err
+			}
+			isAro, err := client.CheckIfARO(context.TODO(), a.Config.Platform.Azure.ResourceGroupName)
+			if err != nil {
+				return err
+			}
+			aro = isAro
+		}
 	}
 	if a.Config.IBMCloud != nil {
 		a.IBMCloud = icibmcloud.NewMetadata(a.Config)
@@ -162,7 +174,7 @@ func (a *InstallConfig) finish(ctx context.Context, filename string) error {
 		}
 	}
 
-	if err := validation.ValidateInstallConfig(a.Config, false).ToAggregate(); err != nil {
+	if err := validation.ValidateInstallConfig(a.Config, false, aro).ToAggregate(); err != nil {
 		if filename == "" {
 			return errors.Wrap(err, "invalid install config")
 		}

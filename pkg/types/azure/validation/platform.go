@@ -56,12 +56,12 @@ var (
 const maxUserTagLimit = 10
 
 // ValidatePlatform checks that the specified platform is valid.
-func ValidatePlatform(p *azure.Platform, publish types.PublishingStrategy, fldPath *field.Path, ic *types.InstallConfig) field.ErrorList {
+func ValidatePlatform(p *azure.Platform, publish types.PublishingStrategy, fldPath *field.Path, ic *types.InstallConfig, isAro bool) field.ErrorList {
 	allErrs := field.ErrorList{}
 	if p.Region == "" {
 		allErrs = append(allErrs, field.Required(fldPath.Child("region"), "region should be set to one of the supported Azure regions"))
 	}
-	if !p.IsARO() && publish != types.InternalPublishingStrategy {
+	if !isAro && publish != types.InternalPublishingStrategy {
 		if p.BaseDomainResourceGroupName == "" {
 			allErrs = append(allErrs, field.Required(fldPath.Child("baseDomainResourceGroupName"), "baseDomainResourceGroupName is the resource group name where the azure dns zone is deployed"))
 		}

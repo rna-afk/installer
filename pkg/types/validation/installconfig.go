@@ -60,7 +60,7 @@ var pluginsUsingHostPrefix = sets.NewString(string(operv1.NetworkTypeOVNKubernet
 // ValidateInstallConfig checks that the specified install config is valid.
 //
 //nolint:gocyclo
-func ValidateInstallConfig(c *types.InstallConfig, usingAgentMethod bool) field.ErrorList {
+func ValidateInstallConfig(c *types.InstallConfig, usingAgentMethod bool, isAro bool) field.ErrorList {
 	allErrs := field.ErrorList{}
 	if c.TypeMeta.APIVersion == "" {
 		return field.ErrorList{field.Required(field.NewPath("apiVersion"), "install-config version required")}
@@ -120,7 +120,7 @@ func ValidateInstallConfig(c *types.InstallConfig, usingAgentMethod bool) field.
 	} else {
 		allErrs = append(allErrs, field.Required(field.NewPath("networking"), "networking is required"))
 	}
-	allErrs = append(allErrs, validatePlatform(&c.Platform, usingAgentMethod, field.NewPath("platform"), c.Networking, c)...)
+	allErrs = append(allErrs, validatePlatform(&c.Platform, usingAgentMethod, field.NewPath("platform"), c.Networking, c, isAro)...)
 	if c.ControlPlane != nil {
 		allErrs = append(allErrs, validateControlPlane(&c.Platform, c.ControlPlane, field.NewPath("controlPlane"))...)
 	} else {
@@ -941,7 +941,7 @@ func ValidateIPinMachineCIDR(vip string, n *types.Networking) error {
 	return fmt.Errorf("IP expected to be in one of the machine networks: %s", strings.Join(networks, ","))
 }
 
-func validatePlatform(platform *types.Platform, usingAgentMethod bool, fldPath *field.Path, network *types.Networking, c *types.InstallConfig) field.ErrorList {
+func validatePlatform(platform *types.Platform, usingAgentMethod bool, fldPath *field.Path, network *types.Networking, c *types.InstallConfig, isAro bool) field.ErrorList {
 	allErrs := field.ErrorList{}
 	activePlatform := platform.Name()
 	platforms := make([]string, len(types.PlatformNames))
@@ -965,7 +965,7 @@ func validatePlatform(platform *types.Platform, usingAgentMethod bool, fldPath *
 	}
 	if platform.Azure != nil {
 		validate(azure.Name, platform.Azure, func(f *field.Path) field.ErrorList {
-			return azurevalidation.ValidatePlatform(platform.Azure, c.Publish, f, c)
+			return azurevalidation.ValidatePlatform(platform.Azure, c.Publish, f, c, isAro)
 		})
 	}
 	if platform.GCP != nil {
