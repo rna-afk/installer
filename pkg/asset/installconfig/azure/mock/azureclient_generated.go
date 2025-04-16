@@ -12,7 +12,7 @@ import (
 	subscriptions "github.com/Azure/azure-sdk-for-go/profiles/2018-03-01/resources/mgmt/subscriptions"
 	network "github.com/Azure/azure-sdk-for-go/profiles/2020-09-01/network/mgmt/network"
 	compute "github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
-	gomock "go.uber.org/mock/gomock"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockAPI is a mock of API interface.
@@ -66,6 +66,21 @@ func (m *MockAPI) CheckIPAddressAvailability(ctx context.Context, resourceGroupN
 func (mr *MockAPIMockRecorder) CheckIPAddressAvailability(ctx, resourceGroupName, virtualNetwork, ipAddr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckIPAddressAvailability", reflect.TypeOf((*MockAPI)(nil).CheckIPAddressAvailability), ctx, resourceGroupName, virtualNetwork, ipAddr)
+}
+
+// CheckIfARO mocks base method.
+func (m *MockAPI) CheckIfARO(ctx context.Context, groupName string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckIfARO", ctx, groupName)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CheckIfARO indicates an expected call of CheckIfARO.
+func (mr *MockAPIMockRecorder) CheckIfARO(ctx, groupName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckIfARO", reflect.TypeOf((*MockAPI)(nil).CheckIfARO), ctx, groupName)
 }
 
 // CheckIfExistsStorageAccount mocks base method.
