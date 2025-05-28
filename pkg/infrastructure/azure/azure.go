@@ -455,7 +455,7 @@ func (p *Provider) InfraReady(ctx context.Context, in clusterapi.InfraReadyInput
 		lbInput.backendAddressPoolName = in.InfraID
 
 		var loadBalancer *armnetwork.LoadBalancer
-		if platform.OutboundType == aztypes.UserDefinedRoutingOutboundType {
+		if platform.OutboundType != aztypes.LoadbalancerOutboundType {
 			loadBalancer, err = createAPILoadBalancer(ctx, publicIP, lbInput)
 			if err != nil {
 				return fmt.Errorf("failed to create API load balancer: %w", err)

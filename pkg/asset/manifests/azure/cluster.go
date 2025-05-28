@@ -104,7 +104,10 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 		Name:             clusterID.InfraID,
 		FrontendIPsCount: to.Ptr(int32(1)),
 	}
-	if installConfig.Config.Platform.Azure.OutboundType == azure.UserDefinedRoutingOutboundType {
+
+	switch installConfig.Config.Platform.Azure.OutboundType {
+	case azure.UserDefinedRoutingOutboundType:
+	case azure.NatGatewayOutboundType:
 		controlPlaneOutboundLB = nil
 	}
 
@@ -175,6 +178,24 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 
 	azEnv := string(installConfig.Azure.CloudName)
 
+	computeSubnetSpec := capz.SubnetSpec{
+		ID: nodeSubnetID,
+		SubnetClassSpec: capz.SubnetClassSpec{
+			Name: computeSubnet,
+			Role: capz.SubnetNode,
+			CIDRBlocks: []string{
+				subnets[1].String(),
+			},
+		},
+		SecurityGroup: securityGroup,
+	}
+
+	if installConfig.Config.Azure.OutboundType == azure.NatGatewayOutboundType {
+		computeSubnetSpec.NatGateway = capz.NatGateway{
+			NatGatewayClassSpec: capz.NatGatewayClassSpec{Name: fmt.Sprintf("%s-natgw", clusterID.InfraID)},
+		}
+	}
+
 	azureCluster := &capz.AzureCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterID.InfraID,
@@ -225,17 +246,7 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 						},
 						SecurityGroup: securityGroup,
 					},
-					{
-						ID: nodeSubnetID,
-						SubnetClassSpec: capz.SubnetClassSpec{
-							Name: computeSubnet,
-							Role: capz.SubnetNode,
-							CIDRBlocks: []string{
-								subnets[1].String(),
-							},
-						},
-						SecurityGroup: securityGroup,
-					},
+					computeSubnetSpec,
 				},
 			},
 		},
