@@ -21,6 +21,8 @@ const (
 	// see https://learn.microsoft.com/en-us/azure/virtual-network/nat-gateway/nat-gateway-resource
 	NatGatewayOutboundType OutboundType = "NatGateway"
 
+	NatGatewayMultiZoneOutboundType OutboundType = "MultiZoneNatGateway"
+
 	// UserDefinedRoutingOutboundType uses user defined routing for egress from the cluster.
 	// see https://docs.microsoft.com/en-us/azure/virtual-network/virtual-networks-udr-overview
 	UserDefinedRoutingOutboundType OutboundType = "UserDefinedRouting"
@@ -82,6 +84,8 @@ type Platform struct {
 	// +optional
 	OutboundType OutboundType `json:"outboundType"`
 
+	NatGatewaySpec []NatGatewaySpec `json:"natGatewaySpec"`
+
 	// ResourceGroupName is the name of an already existing resource group where the cluster should be installed.
 	// This resource group should only be used for this specific cluster and the cluster components will assume
 	// ownership of all resources in the resource group. Destroying the cluster using installer will delete this
@@ -100,6 +104,13 @@ type Platform struct {
 
 	// CustomerManagedKey has the keys needed to encrypt the storage account.
 	CustomerManagedKey *CustomerManagedKey `json:"customerManagedKey,omitempty"`
+}
+
+type NatGatewaySpec struct {
+	Name         string `json:"name"`
+	PublicIPName string `json:"publicIPName"`
+	IPDNSName    string `json:"IPDNSName"`
+	Subnet       string `json:"subnet"`
 }
 
 // KeyVault defines an Azure Key Vault.

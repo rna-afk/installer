@@ -178,7 +178,20 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 
 	azEnv := string(installConfig.Azure.CloudName)
 
-	computeSubnetSpec := capz.SubnetSpec{
+	subnetSpec := capz.Subnets{
+		{
+			SubnetClassSpec: capz.SubnetClassSpec{
+				Name: controlPlaneSubnet,
+				Role: capz.SubnetControlPlane,
+				CIDRBlocks: []string{
+					subnets[0].String(),
+				},
+			},
+			SecurityGroup: securityGroup,
+		},
+	}
+
+	computeSubnetSpec := []capz.SubnetSpec{{
 		ID: nodeSubnetID,
 		SubnetClassSpec: capz.SubnetClassSpec{
 			Name: computeSubnet,
@@ -188,13 +201,37 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 			},
 		},
 		SecurityGroup: securityGroup,
-	}
+	}}
 
 	if installConfig.Config.Azure.OutboundType == azure.NatGatewayOutboundType {
-		computeSubnetSpec.NatGateway = capz.NatGateway{
+		computeSubnetSpec[0].NatGateway = capz.NatGateway{
 			NatGatewayClassSpec: capz.NatGatewayClassSpec{Name: fmt.Sprintf("%s-natgw", clusterID.InfraID)},
 		}
+	} else if installConfig.Config.Azure.OutboundType == azure.NatGatewayMultiZoneOutboundType {
+		computeSubnetSpec = []capz.SubnetSpec{}
+		for _, spec := range installConfig.Config.Azure.NatGatewaySpec {
+			computeSubnetSpec = append(computeSubnetSpec, capz.SubnetSpec{
+				ID: "UNKNOWN",
+				SubnetClassSpec: capz.SubnetClassSpec{
+					Name: computeSubnet,
+					Role: capz.SubnetNode,
+					CIDRBlocks: []string{
+						spec.Subnet,
+					},
+				},
+				NatGateway: capz.NatGateway{
+					NatGatewayIP: capz.PublicIPSpec{
+						Name:    spec.Name,
+						DNSName: spec.IPDNSName,
+					},
+					NatGatewayClassSpec: capz.NatGatewayClassSpec{Name: spec.Name},
+				},
+				SecurityGroup: securityGroup,
+			})
+		}
 	}
+
+	subnetSpec = append(subnetSpec, computeSubnetSpec...)
 
 	azureCluster := &capz.AzureCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -235,19 +272,7 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 				},
 				APIServerLB:            apiServerLB,
 				ControlPlaneOutboundLB: controlPlaneOutboundLB,
-				Subnets: capz.Subnets{
-					{
-						SubnetClassSpec: capz.SubnetClassSpec{
-							Name: controlPlaneSubnet,
-							Role: capz.SubnetControlPlane,
-							CIDRBlocks: []string{
-								subnets[0].String(),
-							},
-						},
-						SecurityGroup: securityGroup,
-					},
-					computeSubnetSpec,
-				},
+				Subnets:                subnetSpec,
 			},
 		},
 	}
