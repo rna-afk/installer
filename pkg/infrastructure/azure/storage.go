@@ -231,6 +231,7 @@ type CreatePageBlobInput struct {
 	ImageURL           string
 	StorageAccountName string
 	BootstrapIgnData   []byte
+	UserDelegatedSAS   *sas.UserDelegationCredential
 	ImageLength        int64
 	AuthType           azic.AuthenticationType
 	TokenCredential    azcore.TokenCredential
@@ -295,12 +296,20 @@ func CreatePageBlob(ctx context.Context, in *CreatePageBlobInput) (string, error
 	if in.AuthType == azic.ManagedIdentityAuth {
 		return pageBlobClient.URL(), nil
 	}
+	blobName := "bootstrap.ign"
+	sasQueryParams, err := sas.BlobSignatureValues{
+		Protocol:    sas.ProtocolHTTPS,
+		StartTime:   time.Now().UTC().Add(time.Second * -10),
+		ExpiryTime:  time.Now().UTC().Add(15 * time.Minute),
+		Permissions: to.Ptr(sas.ContainerPermissions{Read: true, List: true, Write: true, Create: true}).String(),
+		BlobName:    blobName,
+	}.SignWithUserDelegation(in.UserDelegatedSAS)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign page blob %s: %w", in.ImageURL, err)
+	}
 
 	// Is this addition OK for when CreatePageBlob() is called from InfraReady()
-	sasURL, err := pageBlobClient.GetSASURL(sas.BlobPermissions{Read: true}, time.Now().Add(time.Minute*60), &blob.GetSASURLOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to get Page Blob SAS URL: %w", err)
-	}
+	sasURL := fmt.Sprintf("https://%s.blob.core.windows.net/ignition/%s?%s", in.StorageAccountName, blobName, sasQueryParams.Encode())
 	return sasURL, nil
 }
 
@@ -454,6 +463,7 @@ type CreateBlockBlobInput struct {
 	CloudEnvironment   aztypes.CloudEnvironment
 	ContainerName      string
 	BlobName           string
+	UserDelegatedSAS   *sas.UserDelegationCredential
 	StorageSuffix      string
 	ARMEndpoint        string
 	Region             string
@@ -513,10 +523,19 @@ func createBlockBlob(ctx context.Context, in *CreateBlockBlobInput, sharedKeyCre
 		return blockBlobClient.URL(), nil
 	}
 
-	sasURL, err := blockBlobClient.GetSASURL(sas.BlobPermissions{Read: true}, time.Now().Add(time.Minute*60), &blob.GetSASURLOptions{})
+	blobName := "bootstrap.ign"
+	sasQueryParams, err := sas.BlobSignatureValues{
+		Protocol:    sas.ProtocolHTTPS,
+		StartTime:   time.Now().UTC().Add(time.Second * -10),
+		ExpiryTime:  time.Now().UTC().Add(15 * time.Minute),
+		Permissions: to.Ptr(sas.ContainerPermissions{Read: true, List: true, Write: true, Create: true}).String(),
+		BlobName:    blobName,
+	}.SignWithUserDelegation(in.UserDelegatedSAS)
 	if err != nil {
-		return "", fmt.Errorf("failed to get SAS URL: %w", err)
+		return "", fmt.Errorf("failed to sign block blob: %w", err)
 	}
+
+	sasURL := fmt.Sprintf("https://%s.blob.core.windows.net/ignition/%s?%s", in.StorageAccountName, blobName, sasQueryParams.Encode())
 	return sasURL, nil
 }
 
@@ -598,6 +617,7 @@ func uploadBlockBlobOnStack(in *CreateBlockBlobInput, key string) (string, error
 	}
 	return sas, nil
 }
+
 // CustomerManagedKeyInput contains the input parameters for creating the
 // customer managed key and identity.
 type CustomerManagedKeyInput struct {

@@ -17,6 +17,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/service"
 	"github.com/coreos/stream-metadata-go/arch"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -742,6 +744,24 @@ func (p Provider) Ignition(ctx context.Context, in clusterapi.IgnitionInput) ([]
 	}
 
 	sasURL := ""
+	now := time.Now().UTC().Add(-10 * time.Second)
+	expiry := now.Add(48 * time.Hour)
+	info := service.KeyInfo{
+		Start:  to.Ptr(now.UTC().Format(sas.TimeFormat)),
+		Expiry: to.Ptr(expiry.UTC().Format(sas.TimeFormat)),
+	}
+
+	serviceClient, err := service.NewClient(fmt.Sprintf("https://%s.blob.core.windows.net/", p.StorageAccountName),
+		session.TokenCreds,
+		&service.ClientOptions{},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create service client: %w", err)
+	}
+	udc, err := serviceClient.GetUserDelegationCredential(context.Background(), info, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user delegation credentials: %w", err)
+	}
 
 	if in.InstallConfig.Config.Azure.CustomerManagedKey == nil {
 		logrus.Debugf("Creating a Block Blob for ignition shim")
@@ -757,6 +777,7 @@ func (p Provider) Ignition(ctx context.Context, in clusterapi.IgnitionInput) ([]
 			CloudEnvironment:   in.InstallConfig.Azure.CloudName,
 			ContainerName:      ignitionContainerName,
 			BlobName:           blobName,
+			UserDelegatedSAS:   udc,
 			StorageSuffix:      session.Environment.StorageEndpointSuffix,
 			ARMEndpoint:        in.InstallConfig.Azure.ARMEndpoint,
 			Session:            session,
@@ -778,6 +799,7 @@ func (p Provider) Ignition(ctx context.Context, in clusterapi.IgnitionInput) ([]
 			StorageURL:         p.StorageURL,
 			BlobURL:            blobURL,
 			ImageURL:           "",
+			UserDelegatedSAS:   udc,
 			AuthType:           session.AuthType,
 			TokenCredential:    session.TokenCreds,
 			StorageAccountName: p.StorageAccountName,
