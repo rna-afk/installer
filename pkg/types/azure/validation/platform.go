@@ -239,6 +239,7 @@ func findDuplicateTagKeys(tagSet map[string]string) error {
 var (
 	validOutboundTypes = map[azure.OutboundType]struct{}{
 		azure.LoadbalancerOutboundType:         {},
+		azure.NATGatewayMultiZoneOutboundType:  {},
 		azure.NATGatewaySingleZoneOutboundType: {},
 		azure.UserDefinedRoutingOutboundType:   {},
 	}

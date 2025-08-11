@@ -322,6 +322,12 @@ If empty, the value is equal to "AzurePublicCloud".
 installing on Azure for machine pools which do not define their own
 platform configuration.
 
+    natGatewaySpec <[]object> -required-
+      NatGatewaySpec allows the user to specify the subnets and the nat gateway configuration for each subnet.
+Since only one nat gateway is allowed per subnet, users can create multiple subnets and create nat gateway
+for each subnet for zone resilience.
+      NatGatewaySpec allows the user to specify the subnets and the nat gateway configuration for each subnet.
+
     networkResourceGroupName <string>
       NetworkResourceGroupName specifies the network resource group that contains an existing VNet
 

@@ -5277,6 +5277,27 @@ spec:
                           type: string
                         type: array
                     type: object
+                  natGatewaySpec:
+                    description: |-
+                      NatGatewaySpec allows the user to specify the subnets and the nat gateway configuration for each subnet.
+                      Since only one nat gateway is allowed per subnet, users can create multiple subnets and create nat gateway
+                      for each subnet for zone resilience.
+                    items:
+                      description: NatGatewaySpec allows the user to specify the subnets
+                        and the nat gateway configuration for each subnet.
+                      properties:
+                        name:
+                          description: Name of the nat gateway to be created.
+                          type: string
+                        subnet:
+                          description: Subnet specifies the name of the subnet to
+                            be created.
+                          type: string
+                      required:
+                      - name
+                      - subnet
+                      type: object
+                    type: array
                   networkResourceGroupName:
                     description: NetworkResourceGroupName specifies the network resource
                       group that contains an existing VNet
@@ -5326,6 +5347,7 @@ spec:
                       VNet for the installer to use
                     type: string
                 required:
+                - natGatewaySpec
                 - region
                 type: object
               baremetal:
