@@ -20,6 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 
+	"github.com/openshift/installer/pkg/asset/manifests/capiutils/cidr"
+	"github.com/openshift/installer/pkg/ipnet"
 	"github.com/openshift/installer/pkg/types"
 	aztypes "github.com/openshift/installer/pkg/types/azure"
 	"github.com/openshift/installer/pkg/types/azure/defaults"
@@ -71,6 +73,8 @@ func Validate(client API, ic *types.InstallConfig) error {
 	}
 	allErrs = append(allErrs, validateMarketplaceImages(client, ic)...)
 	allErrs = append(allErrs, validateBootDiagnostics(client, ic)...)
+	allErrs = append(allErrs, validateControlPlaneSubnets(client, field.NewPath("platform").Child("azure").Child("subnetSpec"), ic)...)
+	allErrs = append(allErrs, validateCustomSubnetsAndNatGateways(client, field.NewPath("platform").Child("azure").Child("subnetSpec"), ic)...)
 	return allErrs.ToAggregate()
 }
 
@@ -511,34 +515,6 @@ func validateInstanceTypes(client API, ic *types.InstallConfig) field.ErrorList 
 	return allErrs
 }
 
-// validateNetworks checks that the user-provided VNet and subnets are valid.
-func validateNetworks(client API, p *aztypes.Platform, machineNetworks []types.MachineNetworkEntry, fieldPath *field.Path) field.ErrorList {
-	allErrs := field.ErrorList{}
-
-	if p.VirtualNetwork != "" {
-		_, err := client.GetVirtualNetwork(context.TODO(), p.NetworkResourceGroupName, p.VirtualNetwork)
-		if err != nil {
-			return append(allErrs, field.Invalid(fieldPath.Child("virtualNetwork"), p.VirtualNetwork, err.Error()))
-		}
-
-		computeSubnet, err := client.GetComputeSubnet(context.TODO(), p.NetworkResourceGroupName, p.VirtualNetwork, p.ComputeSubnet)
-		if err != nil {
-			return append(allErrs, field.Invalid(fieldPath.Child("computeSubnet"), p.ComputeSubnet, "failed to retrieve compute subnet"))
-		}
-
-		allErrs = append(allErrs, validateSubnet(client, fieldPath.Child("computeSubnet"), computeSubnet, p.ComputeSubnet, machineNetworks)...)
-
-		controlPlaneSubnet, err := client.GetControlPlaneSubnet(context.TODO(), p.NetworkResourceGroupName, p.VirtualNetwork, p.ControlPlaneSubnet)
-		if err != nil {
-			return append(allErrs, field.Invalid(fieldPath.Child("controlPlaneSubnet"), p.ControlPlaneSubnet, "failed to retrieve control plane subnet"))
-		}
-
-		allErrs = append(allErrs, validateSubnet(client, fieldPath.Child("controlPlaneSubnet"), controlPlaneSubnet, p.ControlPlaneSubnet, machineNetworks)...)
-	}
-
-	return allErrs
-}
-
 // validateSubnet checks that the subnet is in the same network as the machine CIDR
 func validateSubnet(client API, fieldPath *field.Path, subnet *aznetwork.Subnet, subnetName string, networks []types.MachineNetworkEntry) field.ErrorList {
 	allErrs := field.ErrorList{}
@@ -571,6 +547,73 @@ func validateMachineNetworksContainIP(fldPath *field.Path, networks []types.Mach
 		}
 	}
 	return field.ErrorList{field.Invalid(fldPath, subnetName, fmt.Sprintf("subnet %s address prefix is outside of the specified machine networks", ip))}
+}
+
+// validateNetworks checks that the user-provided VNet and subnets are valid.
+func validateNetworks(client API, p *aztypes.Platform, machineNetworks []types.MachineNetworkEntry, fieldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if p.VirtualNetwork != "" {
+		_, err := client.GetVirtualNetwork(context.TODO(), p.NetworkResourceGroupName, p.VirtualNetwork)
+		if err != nil {
+			return append(allErrs, field.Invalid(fieldPath.Child("virtualNetwork"), p.VirtualNetwork, err.Error()))
+		}
+
+		computeSubnetName := p.ComputeSubnet
+		controlPlaneSubnetName := p.ControlPlaneSubnet
+		if computeSubnetName == "" || controlPlaneSubnetName == "" {
+			for _, subnet := range p.Subnets {
+				if subnet.Role == capz.SubnetControlPlane && controlPlaneSubnetName == "" {
+					controlPlaneSubnetName = subnet.Name
+				} else if subnet.Role == capz.SubnetNode && computeSubnetName == "" {
+					computeSubnetName = subnet.Name
+				}
+			}
+		}
+		if computeSubnetName == "" {
+			return append(allErrs, field.Invalid(fieldPath.Child("virtualNetwork"), p.VirtualNetwork, "must provide a compute subnet"))
+		}
+		if controlPlaneSubnetName == "" {
+			return append(allErrs, field.Invalid(fieldPath.Child("virtualNetwork"), p.VirtualNetwork, "must provide a control plane subnet"))
+		}
+		if len(allErrs) == 0 {
+			if p.ComputeSubnet != "" {
+				computeSubnet, err := client.GetComputeSubnet(context.TODO(), p.NetworkResourceGroupName, p.VirtualNetwork, p.ComputeSubnet)
+				if err != nil {
+					return append(allErrs, field.Invalid(fieldPath.Child("computeSubnet"), p.ComputeSubnet, fmt.Sprintf("failed to retrieve compute subnet: %v", err)))
+				}
+				allErrs = append(allErrs, validateSubnet(client, fieldPath.Child("computeSubnet"), computeSubnet, p.ComputeSubnet, machineNetworks)...)
+			}
+			if p.ControlPlaneSubnet != "" {
+				controlPlaneSubnet, err := client.GetControlPlaneSubnet(context.TODO(), p.NetworkResourceGroupName, p.VirtualNetwork, p.ControlPlaneSubnet)
+				if err != nil {
+					return append(allErrs, field.Invalid(fieldPath.Child("controlPlaneSubnet"), controlPlaneSubnet, fmt.Sprintf("failed to retrieve control plane subnet: %v", err)))
+				}
+				allErrs = append(allErrs, validateSubnet(client, fieldPath.Child("controlPlaneSubnet"), controlPlaneSubnet, p.ControlPlaneSubnet, machineNetworks)...)
+			}
+			subnetList := map[string]bool{}
+			for index, subnet := range p.Subnets {
+				allErrs = append(allErrs, checkSubnetValidity(client, fieldPath.Child("subnetSpec"), p.NetworkResourceGroupName, subnet, subnetList, p.Region)...)
+				subnetList[subnet.Name] = true
+				if len(subnet.CIDR) != 0 {
+					continue
+				}
+				existingSubnet, err := client.GetComputeSubnet(context.TODO(), p.NetworkResourceGroupName, p.VirtualNetwork, subnet.Name)
+				if err != nil {
+					return append(allErrs, field.Invalid(fieldPath.Child("computeSubnet"), subnet.Name, fmt.Sprintf("failed to retrieve subnet: %v", err)))
+				}
+				addressPrefix := []string{}
+				if existingSubnet.AddressPrefix != nil {
+					addressPrefix = append(addressPrefix, *existingSubnet.AddressPrefix)
+				}
+				if existingSubnet.AddressPrefixes != nil {
+					addressPrefix = append(addressPrefix, *existingSubnet.AddressPrefixes...)
+				}
+				p.Subnets[index].CIDR = addressPrefix
+			}
+		}
+	}
+
+	return allErrs
 }
 
 // validateRegion checks that the desired region is valid and available to the user
@@ -994,4 +1037,235 @@ func checkBootDiagnosticsURI(client API, diag *aztypes.BootDiagnostics, region s
 		return fmt.Errorf(missingErrorMessage, errorField[:len(errorField)-2])
 	}
 	return nil
+}
+
+func validateControlPlaneSubnets(client API, fldPath *field.Path, ic *types.InstallConfig) field.ErrorList {
+	hasControlPlane := false
+	if len(ic.Azure.Subnets) != 0 {
+		for _, subnets := range ic.Azure.Subnets {
+			if subnets.Role == capz.SubnetControlPlane {
+				if hasControlPlane {
+					return field.ErrorList{field.Invalid(fldPath.Child("subnets"), subnets.Name, "CAPZ currently supports only one control plane subnet")}
+				}
+				hasControlPlane = true
+			}
+		}
+	}
+	return nil
+}
+
+func validateCustomSubnetsAndNatGateways(client API, fldPath *field.Path, ic *types.InstallConfig) field.ErrorList {
+	allErrs := field.ErrorList{}
+	vnetCIDR := []ipnet.IPNet{}
+	machineCIDRs := []ipnet.IPNet{}
+	subnetSpec := ic.Azure.Subnets
+	virtualNetwork := ic.Azure.VirtualNetwork
+	networkResourceGroupName := ic.Azure.NetworkResourceGroupName
+
+	// Get the virtual network CIDR to check if the subnets provided are within the vnet.
+	// If there is no virtual network provided, get the machine network CIDR and check.
+	for _, cidrs := range ic.MachineNetwork {
+		machineCIDRs = append(machineCIDRs, cidrs.CIDR)
+	}
+	if virtualNetwork != "" {
+		existingVnet, err := client.GetVirtualNetwork(context.TODO(), networkResourceGroupName, virtualNetwork)
+		if err != nil {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("virtualNetwork"), virtualNetwork, "unable to get virtual network"))
+			return allErrs
+		}
+		vnetCIDR = []ipnet.IPNet{}
+		if existingVnet != nil && existingVnet.VirtualNetworkPropertiesFormat != nil && existingVnet.AddressSpace != nil && existingVnet.AddressSpace.AddressPrefixes != nil {
+			for _, address := range *existingVnet.AddressSpace.AddressPrefixes {
+				cidr, err := ipnet.ParseCIDR(address)
+				if err == nil && cidr != nil {
+					vnetCIDR = append(vnetCIDR, *cidr)
+				}
+			}
+		} else {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("virtualNetwork"), virtualNetwork, "unable to get virtual network CIDRs"))
+			return allErrs
+		}
+	}
+
+	// Get the subnet information with the address prefixes into a map.
+	// If the user provided the CIDR, then the installer needs to create it.
+	hasControlPlane := false
+	hasCompute := false
+	subnetCIDRList := map[string][]string{}
+	for _, subnet := range subnetSpec {
+		if subnet.Role == capz.SubnetControlPlane {
+			hasControlPlane = true
+		} else if subnet.Role == capz.SubnetNode {
+			hasCompute = true
+		}
+		if len(subnet.CIDR) == 0 {
+			existingSubnet, err := client.GetComputeSubnet(context.TODO(), networkResourceGroupName, virtualNetwork, subnet.Name)
+			if err != nil {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), subnet.Name, fmt.Sprintf("unable to find subnet: %v", err)))
+				continue
+			}
+			subnetCIDRList[subnet.Name] = []string{}
+			if existingSubnet.AddressPrefixes != nil {
+				subnetCIDRList[subnet.Name] = *existingSubnet.AddressPrefixes
+			}
+			if existingSubnet.AddressPrefix != nil {
+				subnetCIDRList[subnet.Name] = append(subnetCIDRList[subnet.Name], *existingSubnet.AddressPrefix)
+			}
+			if len(subnetCIDRList[subnet.Name]) == 0 {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), subnet.Name, "unable to get the CIDR range for subnet"))
+				break
+			}
+		} else {
+			subnetCIDRList[subnet.Name] = subnet.CIDR
+		}
+	}
+	subnets, err := cidr.SplitIntoSubnetsIPv4(ic.MachineNetwork[0].CIDR.String(), 2)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), "machine network", "unable to get the CIDR range for machine network"))
+	}
+	if !hasControlPlane {
+		logrus.Debugf("adding default control plane: %s", subnets[0].String())
+		subnetCIDRList["default-control-plane"] = []string{subnets[0].String()}
+	}
+	if !hasCompute {
+		logrus.Debugf("adding default compute: %s", subnets[1].String())
+		subnetCIDRList["default-compute"] = []string{subnets[1].String()}
+	}
+
+	allErrs = validateCIDROverlap(allErrs, fldPath, subnetCIDRList, machineCIDRs, vnetCIDR)
+	return allErrs
+}
+
+func validateCIDROverlap(allErrs field.ErrorList, fldPath *field.Path, subnetCIDRList map[string][]string, machineCIDRs, vnetCIDR []ipnet.IPNet) field.ErrorList {
+	// Convert string array to ipnet.IPNet object.
+	subnetIPNetList := map[string][]*ipnet.IPNet{}
+	for key, value := range subnetCIDRList {
+		subnetIPNetList[key] = []*ipnet.IPNet{}
+		for _, cidrRange := range value {
+			rangeCidr, err := ipnet.ParseCIDR(cidrRange)
+			if err != nil {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), key, fmt.Sprintf("unable to parse CIDR range %s", cidrRange)))
+			}
+			subnetIPNetList[key] = append(subnetIPNetList[key], rangeCidr)
+		}
+	}
+	// Look through the subnets, their address prefixes and the vnet address prefixes
+	// to see if the subnets are within any of the vnet CIDRs.
+	if len(vnetCIDR) > 0 {
+		allErrs = append(allErrs, checkOverlap(fldPath, subnetIPNetList, vnetCIDR, "invalid subnet configuration %s/%d. CIDR exceeds vnet subnet range")...)
+	}
+
+	// Look through the subnets, their address prefixes and the machine network address prefixes
+	// to see if the subnets are within any of the machine network CIDRs.
+	allErrs = append(allErrs, checkOverlap(fldPath, subnetIPNetList, machineCIDRs, "invalid subnet configuration %s/%d. CIDR exceeds machine subnet range")...)
+
+	// Loop through all the cidrs inside a subnet to see overlap.
+	for key, value := range subnetIPNetList {
+		for index, subnetRange := range value {
+			for _, subnetRange2 := range value[index+1:] {
+				if subnetRange.Contains(subnetRange2.IP) || subnetRange2.Contains(subnetRange.IP) {
+					subnetSize, _ := subnetRange.Mask.Size()
+					subnetSize2, _ := subnetRange2.Mask.Size()
+					allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), key,
+						fmt.Sprintf("invalid subnet configuration. CIDRs %s/%d & %s/%d overlap", subnetRange.IP, subnetSize, subnetRange2.IP, subnetSize2)))
+				}
+			}
+		}
+	}
+
+	// Loop through all subnets and check if any of the CIDRs overlap.
+	subnetChecked := map[string]bool{}
+	for key, value := range subnetIPNetList {
+		if _, ok := subnetChecked[key]; ok {
+			continue
+		}
+		for _, subnetRange := range value {
+			for key2, value2 := range subnetIPNetList {
+				if _, ok := subnetChecked[key2]; ok || key == key2 {
+					continue
+				}
+				for _, subnetRange2 := range value2 {
+					subnetMaskSize, _ := subnetRange.Mask.Size()
+					subnet2MaskSize, _ := subnetRange2.Mask.Size()
+					if subnetRange.Contains(subnetRange2.IP) || subnetRange2.Contains(subnetRange.IP) {
+						allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), fmt.Sprintf("%s & %s", key, key2),
+							fmt.Sprintf("invalid subnet configuration. CIDRs of these subnets overlap %s/%d and %s/%d", subnetRange.IP, subnetMaskSize, subnetRange2.IP, subnet2MaskSize)))
+					}
+				}
+			}
+		}
+		subnetChecked[key] = true
+	}
+	return allErrs
+}
+
+func checkOverlap(fldPath *field.Path, subnetMap map[string][]*ipnet.IPNet, subnetList []ipnet.IPNet, errorMsg string) field.ErrorList {
+	allErrs := field.ErrorList{}
+	for key, value := range subnetMap {
+		for _, subnetRange := range value {
+			isWithinVnet := false
+			for _, vnetRange := range subnetList {
+				vnetMask, _ := vnetRange.Mask.Size()
+				subnetMask, _ := subnetRange.Mask.Size()
+				if vnetRange.Contains(subnetRange.IP) && vnetMask <= subnetMask {
+					isWithinVnet = true
+				}
+			}
+			if !isWithinVnet {
+				sizeSubnet, _ := subnetRange.Mask.Size()
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), key,
+					fmt.Sprintf(errorMsg, subnetRange.IP, sizeSubnet)))
+			}
+		}
+	}
+	return allErrs
+}
+
+var zoneSupport *bool
+
+func checkSubnetValidity(client API, fldPath *field.Path, resourceGroup string, subnet aztypes.SubnetSpec, subnetList map[string]bool, region string) field.ErrorList {
+	allErrs := field.ErrorList{}
+	if _, ok := subnetList[subnet.Name]; ok {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), subnet.Name, "duplicate value for subnet name"))
+	}
+	if len(subnet.CIDR) != 0 {
+		if subnet.Role == capz.SubnetControlPlane && (subnet.NatGatewayName != "" || subnet.NatGatewayAZ != "") {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("controlPlaneSubnet"), subnet.Name, "NAT gateway for control plane subnet is not supported"))
+		}
+	}
+	if subnet.Role != capz.SubnetControlPlane && subnet.Role != capz.SubnetNode {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), subnet.Name, fmt.Sprintf("role %s is not supported", subnet.Role)))
+	}
+	if subnet.Role == capz.SubnetControlPlane && subnet.NatGatewayName != "" {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), subnet.Name, "nat gateways not allowed with control plane subnets"))
+	}
+	if subnet.NatGatewayName != "" {
+		if subnet.Role == capz.SubnetControlPlane {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), subnet.Name, "nat gateways not allowed with control plane subnets"))
+		} else if subnet.Role == capz.SubnetNode && len(subnet.CIDR) == 0 {
+			// check if the nat gateway exists as creating one leads to an empty NAT gateway
+			// that does not attach itself to the subnet since the subnet is pre-created by the user.
+			// Guessing CAPZ does not attach the NAT gateway to an existing subnet.
+			_, err := client.GetNatGateway(context.TODO(), resourceGroup, subnet.NatGatewayName)
+			if err != nil {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), subnet.NatGatewayName, fmt.Sprintf("unable to get nat gateway: %s", err.Error())))
+			}
+		}
+		if subnet.NatGatewayAZ != "" {
+			if zoneSupport == nil {
+				zoneSupportRegion, err := client.GetRegionAvailabilityZones(context.TODO(), region)
+				if err != nil {
+					zoneSupport = to.BoolPtr(false)
+				} else {
+					zoneSupport = &zoneSupportRegion
+				}
+			}
+
+			// Check if the region specified supports availability zones.
+			if zoneSupport != nil && !*zoneSupport {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), subnet.Name, "invalid nat gateway availability zone, region does not support zones"))
+			}
+		}
+	}
+	return allErrs
 }
