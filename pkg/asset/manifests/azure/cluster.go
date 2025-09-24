@@ -188,6 +188,11 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 				subnets[1].String(),
 			},
 		},
+		NatGateway: capz.NatGateway{
+			NatGatewayIP:        capz.PublicIPSpec{Name: "anarayan-test-public-ip"},
+			Zones:               []string{"1"},
+			NatGatewayClassSpec: capz.NatGatewayClassSpec{Name: "anarayan-nat-gateway"},
+		},
 		SecurityGroup: securityGroup,
 	}
 
