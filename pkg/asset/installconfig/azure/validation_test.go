@@ -153,9 +153,11 @@ var (
 			{CIDR: ipnet.IPNet{IPNet: *newCidr}},
 		}
 	}
-	invalidResourceSkuRegion = "centralus"
+	invalidResourceSkuRegion  = "centralus"
+	missingCIDRVirtualNetwork = "invalid-cidr-virtual-network"
 
 	invalidateVirtualNetwork               = func(ic *types.InstallConfig) { ic.Azure.VirtualNetwork = "invalid-virtual-network" }
+	missingVirtualNetwork                  = func(ic *types.InstallConfig) { ic.Azure.VirtualNetwork = missingCIDRVirtualNetwork }
 	invalidateComputeSubnet                = func(ic *types.InstallConfig) { ic.Azure.ComputeSubnet = "invalid-compute-subnet" }
 	invalidateControlPlaneSubnet           = func(ic *types.InstallConfig) { ic.Azure.ControlPlaneSubnet = "invalid-controlplane-subnet" }
 	invalidateRegion                       = func(ic *types.InstallConfig) { ic.Azure.Region = "neverland" }
@@ -197,6 +199,11 @@ var (
 
 	virtualNetworkAPIResult = &aznetwork.VirtualNetwork{
 		Name: &validVirtualNetwork,
+		VirtualNetworkPropertiesFormat: &aznetwork.VirtualNetworkPropertiesFormat{
+			AddressSpace: &aznetwork.AddressSpace{
+				AddressPrefixes: &[]string{"10.0.0.0/16"},
+			},
+		},
 	}
 	computeSubnetAPIResult = &aznetwork.Subnet{
 		Name: &validComputeSubnet,
@@ -381,6 +388,52 @@ var (
 			ResourceGroup:      validBootDiagnosticsResourceGroup,
 			StorageAccountName: validBootDiagnosticsStorageAccount,
 		}
+	}
+	validSubnets = func(ic *types.InstallConfig) {
+		ic.Azure.Subnets = []azure.SubnetSpec{
+			{
+				Name: "test-control-plane-1",
+				Role: "control-plane",
+				CIDR: []string{"10.0.0.0/24"},
+			},
+			{
+				Name: "test-compute-1",
+				Role: "node",
+				CIDR: []string{"10.0.1.0/24"},
+			},
+			{
+				Name: "test-compute-2",
+				Role: "node",
+				CIDR: []string{"10.0.2.0/24"},
+			},
+		}
+	}
+	multipleControlPlaneSubnets = func(ic *types.InstallConfig) {
+		ic.Azure.Subnets = append(ic.Azure.Subnets, azure.SubnetSpec{
+			Name: "invalid-control-plane-2", Role: "control-plane", CIDR: []string{"10.0.3.0/24"}})
+	}
+	overlappingControlPlaneSubnet = func(ic *types.InstallConfig) {
+		ic.Azure.Subnets[0].CIDR = append(ic.Azure.Subnets[0].CIDR, "10.0.0.1/32")
+	}
+	overlappingComputeSubnet = func(ic *types.InstallConfig) {
+		ic.Azure.Subnets = append(ic.Azure.Subnets, azure.SubnetSpec{
+			Name: "invalid-compute", Role: "node", CIDR: []string{"10.0.2.3/32"}})
+	}
+	nonOverlapCIDRControlPlane = func(ic *types.InstallConfig) {
+		ic.Azure.Subnets[0].CIDR[0] = "11.0.0.0/24"
+	}
+	nonOverlapCIDRCompute = func(ic *types.InstallConfig) {
+		ic.Azure.Subnets[1].CIDR[0] = "11.0.0.0/24"
+	}
+	invalidSubnetRole = func(ic *types.InstallConfig) {
+		ic.Azure.Subnets[0].Role = "invalid"
+	}
+	duplicateSubnet = func(ic *types.InstallConfig) {
+		ic.Azure.Subnets = append(ic.Azure.Subnets, azure.SubnetSpec{
+			Name: "test-compute-2",
+			Role: "node",
+			CIDR: []string{"10.0.2.0/24"},
+		})
 	}
 )
 
@@ -597,6 +650,51 @@ func TestAzureInstallConfigValidation(t *testing.T) {
 			edits:    editFunctions{validStorageAccountValues},
 			errorMsg: "",
 		},
+		{
+			name:     "valid subnets",
+			edits:    editFunctions{validSubnets},
+			errorMsg: "",
+		},
+		{
+			name:     "vnet with missing CIDR",
+			edits:    editFunctions{validSubnets, missingVirtualNetwork},
+			errorMsg: `platform.azure.subnetSpec.virtualNetwork: Invalid value: "invalid-cidr-virtual-network": unable to get virtual network CIDRs`,
+		},
+		{
+			name:     "Overlapping CIDR in control plane and compute subnet",
+			edits:    editFunctions{validSubnets, multipleControlPlaneSubnets},
+			errorMsg: `platform.azure.subnetSpec.subnets: Invalid value: "invalid-control-plane-2": CAPZ currently supports only one control plane subnet`,
+		},
+		{
+			name:     "Overlapping CIDR within control plane subnet",
+			edits:    editFunctions{validSubnets, overlappingControlPlaneSubnet},
+			errorMsg: `platform.azure.subnetSpec.subnets: Invalid value: "test-control-plane-1": invalid subnet configuration. CIDRs 10.0.0.0/24 & 10.0.0.1/32 overlap`,
+		},
+		{
+			name:     "Overlapping CIDR between two compute subnets",
+			edits:    editFunctions{validSubnets, overlappingComputeSubnet},
+			errorMsg: `platform.azure.subnetSpec.subnets: Invalid value: .*: invalid subnet configuration. CIDRs of these subnets overlap`,
+		},
+		{
+			name:     "Vnet and control plane CIDRs do not overlap",
+			edits:    editFunctions{validSubnets, nonOverlapCIDRControlPlane},
+			errorMsg: `platform.azure.subnetSpec.subnets: Invalid value: "test-control-plane-1": invalid subnet configuration 11.0.0.0/24. CIDR exceeds vnet subnet range`,
+		},
+		{
+			name:     "Vnet and compute CIDRs do not overlap",
+			edits:    editFunctions{validSubnets, nonOverlapCIDRCompute},
+			errorMsg: `platform.azure.subnetSpec.subnets: Invalid value: "test-compute-1": invalid subnet configuration 11.0.0.0/24. CIDR exceeds vnet subnet range`,
+		},
+		{
+			name:     "invalid subnet role",
+			edits:    editFunctions{validSubnets, invalidSubnetRole},
+			errorMsg: `platform.azure.subnetSpec.subnets: Invalid value: "test-control-plane-1": role invalid is not supported`,
+		},
+		{
+			name:     "duplicate subnets",
+			edits:    editFunctions{validSubnets, duplicateSubnet},
+			errorMsg: `platform.azure.subnetSpec.subnets: Invalid value: "test-compute-2": duplicate value for subnet name`,
+		},
 	}
 
 	mockCtrl := gomock.NewController(t)
@@ -619,16 +717,17 @@ func TestAzureInstallConfigValidation(t *testing.T) {
 	// VirtualNetwork
 	azureClient.EXPECT().GetVirtualNetwork(gomock.Any(), validNetworkResourceGroup, validVirtualNetwork).Return(virtualNetworkAPIResult, nil).AnyTimes()
 	azureClient.EXPECT().GetVirtualNetwork(gomock.Any(), gomock.Not(validNetworkResourceGroup), gomock.Not(validVirtualNetwork)).Return(&aznetwork.VirtualNetwork{}, fmt.Errorf("invalid network resource group")).AnyTimes()
-	azureClient.EXPECT().GetVirtualNetwork(gomock.Any(), validNetworkResourceGroup, gomock.Not(validVirtualNetwork)).Return(&aznetwork.VirtualNetwork{}, fmt.Errorf("invalid virtual network")).AnyTimes()
+	azureClient.EXPECT().GetVirtualNetwork(gomock.Any(), validNetworkResourceGroup, gomock.Not(gomock.AnyOf(validVirtualNetwork, missingCIDRVirtualNetwork))).Return(&aznetwork.VirtualNetwork{}, fmt.Errorf("invalid virtual network")).AnyTimes()
+	azureClient.EXPECT().GetVirtualNetwork(gomock.Any(), validNetworkResourceGroup, missingCIDRVirtualNetwork).Return(&aznetwork.VirtualNetwork{}, nil).AnyTimes()
 
 	// ComputeSubnet
-	azureClient.EXPECT().GetComputeSubnet(gomock.Any(), validNetworkResourceGroup, validVirtualNetwork, validComputeSubnet).Return(computeSubnetAPIResult, nil).AnyTimes()
+	azureClient.EXPECT().GetComputeSubnet(gomock.Any(), validNetworkResourceGroup, gomock.AnyOf(validVirtualNetwork, missingCIDRVirtualNetwork), validComputeSubnet).Return(computeSubnetAPIResult, nil).AnyTimes()
 	azureClient.EXPECT().GetComputeSubnet(gomock.Any(), gomock.Not(validNetworkResourceGroup), validVirtualNetwork, validComputeSubnet).Return(&aznetwork.Subnet{}, fmt.Errorf("invalid network resource group")).AnyTimes()
 	azureClient.EXPECT().GetComputeSubnet(gomock.Any(), validNetworkResourceGroup, gomock.Not(validVirtualNetwork), validComputeSubnet).Return(&aznetwork.Subnet{}, fmt.Errorf("invalid virtual network")).AnyTimes()
 	azureClient.EXPECT().GetComputeSubnet(gomock.Any(), validNetworkResourceGroup, validVirtualNetwork, gomock.Not(validComputeSubnet)).Return(&aznetwork.Subnet{}, fmt.Errorf("invalid compute subnet")).AnyTimes()
 
 	// ControlPlaneSubnet
-	azureClient.EXPECT().GetControlPlaneSubnet(gomock.Any(), validNetworkResourceGroup, validVirtualNetwork, validControlPlaneSubnet).Return(controlPlaneSubnetAPIResult, nil).AnyTimes()
+	azureClient.EXPECT().GetControlPlaneSubnet(gomock.Any(), validNetworkResourceGroup, gomock.AnyOf(validVirtualNetwork, missingCIDRVirtualNetwork), validControlPlaneSubnet).Return(controlPlaneSubnetAPIResult, nil).AnyTimes()
 	azureClient.EXPECT().GetControlPlaneSubnet(gomock.Any(), gomock.Not(validNetworkResourceGroup), validVirtualNetwork, validControlPlaneSubnet).Return(&aznetwork.Subnet{}, fmt.Errorf("invalid network resource group")).AnyTimes()
 	azureClient.EXPECT().GetControlPlaneSubnet(gomock.Any(), validNetworkResourceGroup, gomock.Not(validVirtualNetwork), validControlPlaneSubnet).Return(&aznetwork.Subnet{}, fmt.Errorf("invalid virtual network")).AnyTimes()
 	azureClient.EXPECT().GetControlPlaneSubnet(gomock.Any(), validNetworkResourceGroup, validVirtualNetwork, gomock.Not(validControlPlaneSubnet)).Return(&aznetwork.Subnet{}, fmt.Errorf("invalid control plane subnet")).AnyTimes()
@@ -647,7 +746,10 @@ func TestAzureInstallConfigValidation(t *testing.T) {
 
 	azureClient.EXPECT().GetVirtualMachineFamily(gomock.Any(), gomock.Any(), gomock.Any()).Return("", nil).AnyTimes()
 
-	azureClient.EXPECT().CheckIfExistsStorageAccount(gomock.Any(), validBootDiagnosticsResourceGroup, validBootDiagnosticsStorageAccount, validRegion).Return(nil)
+	azureClient.EXPECT().CheckIfExistsStorageAccount(gomock.Any(), validBootDiagnosticsResourceGroup, validBootDiagnosticsStorageAccount, validRegion).Return(nil).AnyTimes()
+
+	azureClient.EXPECT().GetRegionAvailabilityZones(gomock.Any(), validRegion).Return(true, nil).AnyTimes()
+	azureClient.EXPECT().GetRegionAvailabilityZones(gomock.Any(), invalidateRegion).Return(false, nil).AnyTimes()
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
