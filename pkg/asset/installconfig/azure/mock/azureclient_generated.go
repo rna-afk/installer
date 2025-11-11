@@ -223,6 +223,22 @@ func (mr *MockAPIMockRecorder) GetMarketplaceImage(ctx, region, publisher, offer
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMarketplaceImage", reflect.TypeOf((*MockAPI)(nil).GetMarketplaceImage), ctx, region, publisher, offer, sku, version)
 }
 
+// GetRegionAvailabilityZones mocks base method.
+func (m *MockAPI) GetRegionAvailabilityZones(ctx context.Context, region string) (bool, int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRegionAvailabilityZones", ctx, region)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(int)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetRegionAvailabilityZones indicates an expected call of GetRegionAvailabilityZones.
+func (mr *MockAPIMockRecorder) GetRegionAvailabilityZones(ctx, region any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRegionAvailabilityZones", reflect.TypeOf((*MockAPI)(nil).GetRegionAvailabilityZones), ctx, region)
+}
+
 // GetResourcesProvider mocks base method.
 func (m *MockAPI) GetResourcesProvider(ctx context.Context, resourceProviderNamespace string) (*resources.Provider, error) {
 	m.ctrl.T.Helper()
