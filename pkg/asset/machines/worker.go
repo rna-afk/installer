@@ -603,8 +603,7 @@ func (w *Worker) Generate(ctx context.Context, dependencies asset.Parents) error
 				return err
 			}
 
-			useImageGallery := ic.Platform.Azure.CloudName != azuretypes.StackCloud
-			sets, err := azure.MachineSets(clusterID.InfraID, ic, &pool, rhcosImage.Compute, "worker", workerUserDataSecretName, capabilities, useImageGallery, session)
+			sets, err := azure.MachineSets(clusterID.InfraID, ic, &pool, rhcosImage.Compute, "worker", workerUserDataSecretName, capabilities, session)
 			if err != nil {
 				return errors.Wrap(err, "failed to create worker machine objects")
 			}
