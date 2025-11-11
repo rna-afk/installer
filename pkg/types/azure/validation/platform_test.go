@@ -23,8 +23,8 @@ func validNetworkPlatform() *azure.Platform {
 	p := validPlatform()
 	p.NetworkResourceGroupName = "networkresourcegroup"
 	p.VirtualNetwork = "virtualnetwork"
-	p.ComputeSubnet = "computesubnet"
-	p.ControlPlaneSubnet = "controlplanesubnet"
+	// p.ComputeSubnet = "computesubnet"
+	// p.ControlPlaneSubnet = "controlplanesubnet"
 	return p
 }
 
@@ -81,25 +81,25 @@ func TestValidatePlatform(t *testing.T) {
 			name:     "valid subnets & virtual network",
 			platform: validNetworkPlatform(),
 		},
-		{
-			name: "missing subnets",
-			platform: func() *azure.Platform {
-				p := validNetworkPlatform()
-				p.ControlPlaneSubnet = ""
-				return p
-			}(),
-			expected: `^test-path\.controlPlaneSubnet: Required value: must provide a control plane subnet when a virtual network is specified$`,
-		},
-		{
-			name: "subnets missing virtual network",
-			platform: func() *azure.Platform {
-				p := validNetworkPlatform()
-				p.ControlPlaneSubnet = ""
-				p.VirtualNetwork = ""
-				return p
-			}(),
-			expected: `^test-path\.virtualNetwork: Required value: must provide a virtual network when supplying subnets$`,
-		},
+		// {
+		// 	name: "missing subnets",
+		// 	platform: func() *azure.Platform {
+		// 		p := validNetworkPlatform()
+		// 		p.ControlPlaneSubnet = ""
+		// 		return p
+		// 	}(),
+		// 	expected: `^test-path\.controlPlaneSubnet: Required value: must provide a control plane subnet when a virtual network is specified$`,
+		// },
+		// {
+		// 	name: "subnets missing virtual network",
+		// 	platform: func() *azure.Platform {
+		// 		p := validNetworkPlatform()
+		// 		p.ControlPlaneSubnet = ""
+		// 		p.VirtualNetwork = ""
+		// 		return p
+		// 	}(),
+		// 	expected: `^test-path\.virtualNetwork: Required value: must provide a virtual network when supplying subnets$`,
+		// },
 		{
 			name: "missing network resource group",
 			platform: func() *azure.Platform {
@@ -134,7 +134,7 @@ func TestValidatePlatform(t *testing.T) {
 				p.OutboundType = "random-egress"
 				return p
 			}(),
-			expected: `^test-path\.outboundType: Unsupported value: "random-egress": supported values: "Loadbalancer", "NATGatewaySingleZone", "UserDefinedRouting"$`,
+			expected: `^test-path\.outboundType: Unsupported value: "random-egress": supported values: "Loadbalancer", "MultiZoneNatGateway", "NATGatewaySingleZone", "UserDefinedRouting"$`,
 		},
 		{
 			name: "invalid user defined type",

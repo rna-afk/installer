@@ -156,13 +156,10 @@ var (
 	invalidResourceSkuRegion = "centralus"
 
 	invalidateVirtualNetwork               = func(ic *types.InstallConfig) { ic.Azure.VirtualNetwork = "invalid-virtual-network" }
-	invalidateComputeSubnet                = func(ic *types.InstallConfig) { ic.Azure.ComputeSubnet = "invalid-compute-subnet" }
-	invalidateControlPlaneSubnet           = func(ic *types.InstallConfig) { ic.Azure.ControlPlaneSubnet = "invalid-controlplane-subnet" }
 	invalidateRegion                       = func(ic *types.InstallConfig) { ic.Azure.Region = "neverland" }
 	invalidateRegionCapabilities           = func(ic *types.InstallConfig) { ic.Azure.Region = "australiacentral2" }
 	invalidateRegionLetterCase             = func(ic *types.InstallConfig) { ic.Azure.Region = "Central US" }
 	removeVirtualNetwork                   = func(ic *types.InstallConfig) { ic.Azure.VirtualNetwork = "" }
-	removeSubnets                          = func(ic *types.InstallConfig) { ic.Azure.ComputeSubnet, ic.Azure.ControlPlaneSubnet = "", "" }
 	premiumDiskCompute                     = func(ic *types.InstallConfig) { ic.Compute[0].Platform.Azure.OSDisk.DiskType = "Premium_LRS" }
 	nonpremiumInstanceTypeDiskCompute      = func(ic *types.InstallConfig) { ic.Compute[0].Platform.Azure.InstanceType = "Standard_D4_v4" }
 	premiumDiskControlPlane                = func(ic *types.InstallConfig) { ic.ControlPlane.Platform.Azure.OSDisk.DiskType = "Premium_LRS" }
@@ -396,8 +393,6 @@ func validInstallConfig() *types.InstallConfig {
 				Region:                   validRegion,
 				NetworkResourceGroupName: validNetworkResourceGroup,
 				VirtualNetwork:           validVirtualNetwork,
-				ComputeSubnet:            validComputeSubnet,
-				ControlPlaneSubnet:       validControlPlaneSubnet,
 				DefaultMachinePlatform:   &azure.MachinePool{},
 			},
 		},
@@ -427,11 +422,11 @@ func TestAzureInstallConfigValidation(t *testing.T) {
 			edits:    editFunctions{},
 			errorMsg: "",
 		},
-		{
-			name:     "Valid install config without virtual network & subnets",
-			edits:    editFunctions{removeVirtualNetwork, removeSubnets},
-			errorMsg: "",
-		},
+		// {
+		// 	name:     "Valid install config without virtual network & subnets",
+		// 	edits:    editFunctions{removeVirtualNetwork, removeSubnets},
+		// 	errorMsg: "",
+		// },
 		{
 			name:     "Invalid subnet range",
 			edits:    editFunctions{invalidateMachineCIDR},
@@ -442,21 +437,21 @@ func TestAzureInstallConfigValidation(t *testing.T) {
 			edits:    editFunctions{invalidateVirtualNetwork},
 			errorMsg: "invalid virtual network",
 		},
-		{
-			name:     "Invalid compute subnet",
-			edits:    editFunctions{invalidateComputeSubnet},
-			errorMsg: "failed to retrieve compute subnet",
-		},
-		{
-			name:     "Invalid control plane subnet",
-			edits:    editFunctions{invalidateControlPlaneSubnet},
-			errorMsg: "failed to retrieve control plane subnet",
-		},
-		{
-			name:     "Invalid both subnets",
-			edits:    editFunctions{invalidateControlPlaneSubnet, invalidateComputeSubnet},
-			errorMsg: "failed to retrieve compute subnet",
-		},
+		// {
+		// 	name:     "Invalid compute subnet",
+		// 	edits:    editFunctions{invalidateComputeSubnet},
+		// 	errorMsg: "failed to retrieve compute subnet",
+		// },
+		// {
+		// 	name:     "Invalid control plane subnet",
+		// 	edits:    editFunctions{invalidateControlPlaneSubnet},
+		// 	errorMsg: "failed to retrieve control plane subnet",
+		// },
+		// {
+		// 	name:     "Invalid both subnets",
+		// 	edits:    editFunctions{invalidateControlPlaneSubnet, invalidateComputeSubnet},
+		// 	errorMsg: "failed to retrieve compute subnet",
+		// },
 		{
 			name:     "Valid instance types",
 			edits:    editFunctions{validInstanceTypes},

@@ -583,6 +583,11 @@ func (w *Worker) Generate(ctx context.Context, dependencies asset.Parents) error
 				}
 			}
 
+			subnetZones, err := client.GetRegionAvailabilityZones(ctx, ic.Platform.Azure.Region)
+			if err != nil {
+				return errors.Wrap(err, "failed to fetch availability zones")
+			}
+
 			if mpool.OSImage.Publisher != "" {
 				img, ierr := client.GetMarketplaceImage(ctx, ic.Platform.Azure.Region, mpool.OSImage.Publisher, mpool.OSImage.Offer, mpool.OSImage.SKU, mpool.OSImage.Version)
 				if ierr != nil {
@@ -603,7 +608,7 @@ func (w *Worker) Generate(ctx context.Context, dependencies asset.Parents) error
 			}
 
 			useImageGallery := ic.Platform.Azure.CloudName != azuretypes.StackCloud
-			sets, err := azure.MachineSets(clusterID.InfraID, ic, &pool, rhcosImage.Compute, "worker", workerUserDataSecretName, capabilities, useImageGallery, session)
+			sets, err := azure.MachineSets(clusterID.InfraID, ic, &pool, rhcosImage.Compute, "worker", workerUserDataSecretName, capabilities, useImageGallery, subnetZones, session)
 			if err != nil {
 				return errors.Wrap(err, "failed to create worker machine objects")
 			}
