@@ -583,6 +583,13 @@ func (w *Worker) Generate(ctx context.Context, dependencies asset.Parents) error
 					mpool.Zones = []string{""}
 				}
 			}
+			subnetZones := []string{}
+			if ic.Azure.OutboundType == azuretypes.NATGatewayMultiZoneOutboundType {
+				subnetZones, err = installConfig.Azure.AvailabilityZones(ctx)
+				if err != nil {
+					return errors.Wrap(err, "failed to fetch availability zones")
+				}
+			}
 
 			if mpool.OSImage.Publisher != "" {
 				img, ierr := client.GetMarketplaceImage(ctx, ic.Platform.Azure.Region, mpool.OSImage.Publisher, mpool.OSImage.Offer, mpool.OSImage.SKU, mpool.OSImage.Version)
@@ -603,7 +610,7 @@ func (w *Worker) Generate(ctx context.Context, dependencies asset.Parents) error
 				return err
 			}
 
-			sets, err := azure.MachineSets(clusterID.InfraID, ic, &pool, rhcosImage.Compute, "worker", workerUserDataSecretName, capabilities, session)
+			sets, err := azure.MachineSets(clusterID.InfraID, ic, &pool, rhcosImage.Compute, "worker", workerUserDataSecretName, capabilities, subnetZones, session)
 			if err != nil {
 				return errors.Wrap(err, "failed to create worker machine objects")
 			}
