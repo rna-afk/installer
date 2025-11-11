@@ -36,14 +36,21 @@ func MachineSets(clusterID string, config *types.InstallConfig, pool *types.Mach
 		total = *pool.Replicas
 	}
 
+	networkResourceGroup, virtualNetworkName, subnets, err := getNetworkInfo(platform, clusterID, role)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get subnets for role %s : %w", role, err)
+	}
+
 	numOfAZs := int64(len(azs))
+	subnetIndex := -1
 	var machinesets []*clusterapi.MachineSet
 	for idx, az := range azs {
 		replicas := int32(total / numOfAZs)
 		if int64(idx) < total%numOfAZs {
 			replicas++
 		}
-		provider, err := provider(platform, mpool, osImage, userDataSecret, clusterID, role, &idx, capabilities, useImageGallery, session)
+		subnetIndex = (subnetIndex + 1) % len(subnets)
+		provider, err := provider(platform, mpool, osImage, userDataSecret, clusterID, role, &idx, capabilities, useImageGallery, session, networkResourceGroup, virtualNetworkName, subnets[subnetIndex])
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create provider")
 		}

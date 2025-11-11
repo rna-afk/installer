@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/azure"
@@ -68,18 +69,44 @@ func ValidatePlatform(p *azure.Platform, publish types.PublishingStrategy, fldPa
 	if p.DefaultMachinePlatform != nil {
 		allErrs = append(allErrs, ValidateMachinePool(p.DefaultMachinePlatform, "", p, nil, fldPath.Child("defaultMachinePlatform"))...)
 	}
+	hasControlPlane := false
+	hasCompute := false
+	subnetSpecList := map[string]bool{}
+	for _, subnets := range p.Subnets {
+		if _, ok := subnetSpecList[subnets.Name]; ok {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), subnets.Name, "duplicate value for subnet name"))
+		}
+		subnetSpecList[subnets.Name] = true
+		switch subnets.Role {
+		case capz.SubnetControlPlane:
+			if hasControlPlane {
+				allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), subnets.Name, "CAPZ currently does not support multiple control plane subnets"))
+			}
+			hasControlPlane = true
+		case capz.SubnetNode:
+			hasCompute = true
+		default:
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("subnets"), subnets.Name, fmt.Sprintf("role %s not supported", subnets.Role)))
+		}
+	}
+	if !hasCompute && p.ComputeSubnet != "" {
+		hasCompute = true
+	}
+	if !hasControlPlane && p.ControlPlaneSubnet != "" {
+		hasControlPlane = true
+	}
 	if p.VirtualNetwork != "" {
-		if p.ComputeSubnet == "" {
-			allErrs = append(allErrs, field.Required(fldPath.Child("computeSubnet"), "must provide a compute subnet when a virtual network is specified"))
-		}
-		if p.ControlPlaneSubnet == "" {
-			allErrs = append(allErrs, field.Required(fldPath.Child("controlPlaneSubnet"), "must provide a control plane subnet when a virtual network is specified"))
-		}
 		if p.NetworkResourceGroupName == "" {
 			allErrs = append(allErrs, field.Required(fldPath.Child("networkResourceGroupName"), "must provide a network resource group when a virtual network is specified"))
 		}
+		if !hasCompute {
+			allErrs = append(allErrs, field.Required(fldPath.Child("computeSubnet"), "must provide a compute subnet when a virtual network is specified"))
+		}
+		if !hasControlPlane {
+			allErrs = append(allErrs, field.Required(fldPath.Child("controlPlaneSubnet"), "must provide a control plane subnet when a virtual network is specified"))
+		}
 	}
-	if (p.ComputeSubnet != "" || p.ControlPlaneSubnet != "") && (p.VirtualNetwork == "" || p.NetworkResourceGroupName == "") {
+	if (hasCompute || hasControlPlane) && (p.VirtualNetwork == "" || p.NetworkResourceGroupName == "") {
 		if p.VirtualNetwork == "" {
 			allErrs = append(allErrs, field.Required(fldPath.Child("virtualNetwork"), "must provide a virtual network when supplying subnets"))
 		}
@@ -239,6 +266,7 @@ func findDuplicateTagKeys(tagSet map[string]string) error {
 var (
 	validOutboundTypes = map[azure.OutboundType]struct{}{
 		azure.LoadbalancerOutboundType:         {},
+		azure.NATGatewayMultiZoneOutboundType:  {},
 		azure.NATGatewaySingleZoneOutboundType: {},
 		azure.UserDefinedRoutingOutboundType:   {},
 	}
