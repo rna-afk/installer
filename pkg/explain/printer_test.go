@@ -329,7 +329,7 @@ platform configuration.
 
     outboundType <string>
       Default: "Loadbalancer"
-      Valid Values: "","Loadbalancer","NATGatewaySingleZone","UserDefinedRouting"
+      Valid Values: "","Loadbalancer","NATGatewaySingleZone","NATGatewayMultiZone","UserDefinedRouting"
       OutboundType is a strategy for how egress from cluster is achieved. When not specified default is "Loadbalancer".
 
     region <string> -required-
