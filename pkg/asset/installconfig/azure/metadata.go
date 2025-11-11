@@ -3,6 +3,7 @@ package azure
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/openshift/installer/pkg/types"
@@ -14,14 +15,14 @@ import (
 // does not need to be user-supplied (e.g. because it can be retrieved
 // from external APIs).
 type Metadata struct {
-	session *Session
-	client  API
-	dnsCfg  *DNSConfig
-
-	region          string
-	controlPlane    *types.MachinePool
-	compute         *types.MachinePool
-	defaultPlatform *typesazure.MachinePool
+	session           *Session
+	client            API
+	dnsCfg            *DNSConfig
+	availabilityZones []string
+	region            string
+	controlPlane      *types.MachinePool
+	compute           *types.MachinePool
+	defaultPlatform   *typesazure.MachinePool
 
 	controlPlaneCapabilities map[string]string
 	computeCapabilities      map[string]string
@@ -182,4 +183,23 @@ func (m *Metadata) getCapabilities(mPool *types.MachinePool, defaultInstanceType
 		return nil, err
 	}
 	return caps, nil
+}
+
+// AvailabilityZones retrieves a list of availability zones for the configured region.
+func (m *Metadata) AvailabilityZones(ctx context.Context) ([]string, error) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	if len(m.availabilityZones) == 0 {
+		zones, err := m.client.GetRegionAvailabilityZones(ctx, m.region)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving Availability Zones: %w", err)
+		}
+		if zones != nil {
+			sort.Strings(zones)
+			m.availabilityZones = zones
+		}
+	}
+
+	return m.availabilityZones, nil
 }
