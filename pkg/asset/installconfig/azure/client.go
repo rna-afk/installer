@@ -14,6 +14,8 @@ import (
 	azmarketplace "github.com/Azure/azure-sdk-for-go/profiles/latest/marketplaceordering/mgmt/marketplaceordering"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	azstorage "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/Azure/go-autorest/autorest/to"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -43,6 +45,8 @@ type API interface {
 	GetAvailabilityZones(ctx context.Context, region string, instanceType string) ([]string, error)
 	GetLocationInfo(ctx context.Context, region string, instanceType string) (*azenc.ResourceSkuLocationInfo, error)
 	CheckIfExistsStorageAccount(ctx context.Context, resourceGroup, storageAccountName, region string) error
+	GetRegionAvailabilityZones(ctx context.Context, region string) ([]string, error)
+	CheckSubnetNatgateway(ctx context.Context, resourceGroup, virtualNetwork, subnet string) (bool, error)
 }
 
 // Client makes calls to the Azure API.
@@ -451,7 +455,7 @@ func (c *Client) CheckIfExistsStorageAccount(ctx context.Context, resourceGroup,
 	accountClientOptions := arm.ClientOptions{
 		ClientOptions: policy.ClientOptions{
 			// NOTE: the api version must support AzureStack
-			APIVersion: "2019-04-01",
+			APIVersion: "2019-10-01",
 			Cloud:      c.ssn.CloudConfig,
 		},
 	}
@@ -472,4 +476,93 @@ func (c *Client) CheckIfExistsStorageAccount(ctx context.Context, resourceGroup,
 		return fmt.Errorf("%s is not supported, supported values are %s,%s,%s", string(*resp.Account.SKU.Name), stringSKUs[0], stringSKUs[1], stringSKUs[2])
 	}
 	return err
+}
+
+// GetRegionAvailabilityZones checks if a given region has availabililty zones for the nat gateways to use.
+func (c *Client) GetRegionAvailabilityZones(ctx context.Context, region string) ([]string, error) {
+	clientOptions := arm.ClientOptions{
+		ClientOptions: policy.ClientOptions{
+			// NOTE: the api version must support AzureStack
+			APIVersion: "2019-10-01",
+			Cloud:      c.ssn.CloudConfig,
+		},
+	}
+	providersClient, err := armresources.NewProvidersClient(c.ssn.Credentials.SubscriptionID, c.ssn.TokenCreds, &clientOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create providers client: %w", err)
+	}
+
+	provider, err := providersClient.Get(ctx, "Microsoft.Network", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Microsoft.Network provider: %w", err)
+	}
+
+	if provider.ResourceTypes == nil {
+		return nil, fmt.Errorf("no resource types found in Microsoft.Network provider")
+	}
+
+	// Find natGateways resource type
+	for _, rt := range provider.ResourceTypes {
+		if rt.ResourceType != nil && *rt.ResourceType == "natGateways" {
+			// Look for zone mappings for the specified region
+			if rt.ZoneMappings != nil {
+				for _, zm := range rt.ZoneMappings {
+					if zm.Location != nil && strings.EqualFold(strings.ReplaceAll(strings.ToLower(*zm.Location), " ", ""), region) {
+						if len(zm.Zones) > 0 {
+							zones := make([]string, 0, len(zm.Zones))
+							for _, zone := range zm.Zones {
+								if zone != nil {
+									zones = append(zones, *zone)
+								}
+							}
+							return zones, nil
+						}
+					}
+				}
+			}
+			// Region found in locations but no zone mappings = NAT gateway available but not zonal
+			if rt.Locations != nil {
+				for _, loc := range rt.Locations {
+					if loc != nil && strings.EqualFold(*loc, region) {
+						return nil, nil // NAT gateway available but no zones
+					}
+				}
+			}
+			return nil, fmt.Errorf("NAT gateway not available in region %s", region)
+		}
+	}
+
+	return nil, fmt.Errorf("natGateways resource type not found in Microsoft.Network provider")
+
+}
+
+// CheckSubnetNatgateway checks if there is an existing NAT gateway in a subnet.
+func (c *Client) CheckSubnetNatgateway(ctx context.Context, resourceGroup, virtualNetwork, subnet string) (bool, error) {
+	clientOptions := arm.ClientOptions{
+		ClientOptions: policy.ClientOptions{
+			// NOTE: the api version must support AzureStack
+			APIVersion: "2019-04-01",
+			Cloud:      c.ssn.CloudConfig,
+		},
+	}
+	clientFactory, err := armnetwork.NewClientFactory(c.ssn.Credentials.SubscriptionID, c.ssn.TokenCreds, &clientOptions)
+	if err != nil {
+		return false, fmt.Errorf("failed to create client factory: %w", err)
+	}
+
+	res, err := clientFactory.NewSubnetsClient().Get(
+		ctx,
+		resourceGroup,
+		virtualNetwork,
+		subnet,
+		&armnetwork.SubnetsClientGetOptions{Expand: nil},
+	)
+	if err != nil {
+		return false, fmt.Errorf("failed to get subnet %s: %w", subnet, err)
+	}
+
+	if res.Subnet.Properties != nil {
+		return res.Subnet.Properties.NatGateway != nil, nil
+	}
+	return false, fmt.Errorf("unable to get subnet nat gateway")
 }
