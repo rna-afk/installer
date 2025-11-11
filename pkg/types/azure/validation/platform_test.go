@@ -134,7 +134,7 @@ func TestValidatePlatform(t *testing.T) {
 				p.OutboundType = "random-egress"
 				return p
 			}(),
-			expected: `^test-path\.outboundType: Unsupported value: "random-egress": supported values: "Loadbalancer", "NATGatewaySingleZone", "UserDefinedRouting"$`,
+			expected: `^test-path\.outboundType: Unsupported value: "random-egress": supported values: "Loadbalancer", "MultiZoneNatGateway", "NATGatewaySingleZone", "UserDefinedRouting"$`,
 		},
 		{
 			name: "invalid user defined type",

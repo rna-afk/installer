@@ -14,6 +14,7 @@ import (
 	azmarketplace "github.com/Azure/azure-sdk-for-go/profiles/latest/marketplaceordering/mgmt/marketplaceordering"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
 	azstorage "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/Azure/go-autorest/autorest/to"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -43,6 +44,7 @@ type API interface {
 	GetAvailabilityZones(ctx context.Context, region string, instanceType string) ([]string, error)
 	GetLocationInfo(ctx context.Context, region string, instanceType string) (*azenc.ResourceSkuLocationInfo, error)
 	CheckIfExistsStorageAccount(ctx context.Context, resourceGroup, storageAccountName, region string) error
+	GetRegionAvailabilityZones(ctx context.Context, region string) (bool, int, error)
 }
 
 // Client makes calls to the Azure API.
@@ -472,4 +474,35 @@ func (c *Client) CheckIfExistsStorageAccount(ctx context.Context, resourceGroup,
 		return fmt.Errorf("%s is not supported, supported values are %s,%s,%s", string(*resp.Account.SKU.Name), stringSKUs[0], stringSKUs[1], stringSKUs[2])
 	}
 	return err
+}
+
+// GetRegionAvailabilityZones checks if a given region has availabililty zones for the nat gateways to use.
+func (c *Client) GetRegionAvailabilityZones(ctx context.Context, region string) (bool, int, error) {
+	regionClient, err := armcompute.NewResourceSKUsClient(c.ssn.Credentials.SubscriptionID, c.ssn.TokenCreds, nil)
+	if err != nil {
+		return false, 0, err
+	}
+	filter := fmt.Sprintf("location eq '%s'", region)
+	pager := regionClient.NewListPager(&armcompute.ResourceSKUsClientListOptions{Filter: to.StringPtr(filter)})
+
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			return false, 0, fmt.Errorf("failed to get availability zones pages : %w", err)
+		}
+		for _, sku := range page.Value {
+			// Check if SKU is available in the desired location
+			if sku.LocationInfo != nil {
+				for _, locInfo := range sku.LocationInfo {
+					if locInfo.Location != nil && *locInfo.Location == region {
+						// Check if zones are available
+						if len(locInfo.Zones) > 0 {
+							return true, len(locInfo.Zones), nil
+						}
+					}
+				}
+			}
+		}
+	}
+	return false, 0, nil
 }
