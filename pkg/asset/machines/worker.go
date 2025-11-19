@@ -571,7 +571,7 @@ func (w *Worker) Generate(ctx context.Context, dependencies asset.Parents) error
 			}
 
 			if len(mpool.Zones) == 0 {
-				azs, err := client.GetAvailabilityZones(ctx, ic.Platform.Azure.Region, mpool.InstanceType)
+				azs, err := installConfig.Azure.VMAvailabilityZones(ctx, mpool.InstanceType)
 				if err != nil {
 					return errors.Wrap(err, "failed to fetch availability zones")
 				}
@@ -588,6 +588,8 @@ func (w *Worker) Generate(ctx context.Context, dependencies asset.Parents) error
 				if err != nil {
 					return errors.Wrap(err, "failed to fetch availability zones")
 				}
+				computeSubnet := installConfig.Config.Azure.ComputeSubnetName(clusterID.InfraID)
+				installConfig.Azure.GenerateZonesSubnetMap(installConfig.Config.Azure.Subnets, computeSubnet)
 			}
 
 			if mpool.OSImage.Publisher != "" {
@@ -610,7 +612,7 @@ func (w *Worker) Generate(ctx context.Context, dependencies asset.Parents) error
 			}
 
 			useImageGallery := ic.Platform.Azure.CloudName != azuretypes.StackCloud
-			sets, err := azure.MachineSets(clusterID.InfraID, ic, &pool, rhcosImage.Compute, "worker", workerUserDataSecretName, capabilities, useImageGallery, subnetZones, session)
+			sets, err := azure.MachineSets(clusterID.InfraID, installConfig, &pool, rhcosImage.Compute, "worker", workerUserDataSecretName, capabilities, useImageGallery, subnetZones, session)
 			if err != nil {
 				return errors.Wrap(err, "failed to create worker machine objects")
 			}
