@@ -572,7 +572,7 @@ func (w *Worker) Generate(ctx context.Context, dependencies asset.Parents) error
 			}
 
 			if len(mpool.Zones) == 0 {
-				azs, err := client.GetAvailabilityZones(ctx, ic.Platform.Azure.Region, mpool.InstanceType)
+				azs, err := installConfig.Azure.VMAvailabilityZones(ctx, mpool.InstanceType)
 				if err != nil {
 					return errors.Wrap(err, "failed to fetch availability zones")
 				}
@@ -588,6 +588,11 @@ func (w *Worker) Generate(ctx context.Context, dependencies asset.Parents) error
 				subnetZones, err = installConfig.Azure.AvailabilityZones(ctx)
 				if err != nil {
 					return errors.Wrap(err, "failed to fetch availability zones")
+				}
+				computeSubnet := installConfig.Config.Azure.ComputeSubnetName(clusterID.InfraID)
+				_, err := installConfig.Azure.GenerateZonesSubnetMap(installConfig.Config.Azure.Subnets, computeSubnet)
+				if err != nil {
+					return err
 				}
 			}
 
@@ -610,7 +615,7 @@ func (w *Worker) Generate(ctx context.Context, dependencies asset.Parents) error
 				return err
 			}
 
-			sets, err := azure.MachineSets(clusterID.InfraID, ic, &pool, rhcosImage.Compute, "worker", workerUserDataSecretName, capabilities, subnetZones, session)
+			sets, err := azure.MachineSets(clusterID.InfraID, installConfig, &pool, rhcosImage.Compute, "worker", workerUserDataSecretName, capabilities, subnetZones, session)
 			if err != nil {
 				return errors.Wrap(err, "failed to create worker machine objects")
 			}
