@@ -1,4 +1,4 @@
-package types
+package types //nolint:revive // package name matches directory
 
 import (
 	"testing"
