@@ -224,6 +224,13 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 	}
 
 	virtualNetworkID := ""
+	apiServerLB.FrontendIPs = []capz.FrontendIP{{
+		Name: fmt.Sprintf("%s-internal-frontEnd", clusterID.InfraID),
+		FrontendIPClass: capz.FrontendIPClass{
+			PrivateIPAddress: lbip4,
+		},
+	}}
+
 	vnetResourceGroup := installConfig.Config.Azure.ResourceGroupName
 	if installConfig.Config.Azure.VirtualNetwork != "" {
 		virtualNetworkAddressPrefixes = make([]string, 0)
