@@ -421,8 +421,9 @@ func (p *Provider) InfraReady(ctx context.Context, in clusterapi.InfraReadyInput
 			session.Credentials.SubscriptionID,
 			resourceGroupName,
 		),
-		lbClient: lbClient,
-		tags:     p.Tags,
+		lbClient:    lbClient,
+		tags:        p.Tags,
+		isDualstack: in.InstallConfig.Config.Azure.IPFamily.DualStackEnabled(),
 	}
 
 	intLoadBalancer, err := updateInternalLoadBalancer(ctx, lbInput)

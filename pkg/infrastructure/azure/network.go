@@ -29,6 +29,7 @@ type lbInput struct {
 	idPrefix               string
 	lbClient               *armnetwork.LoadBalancersClient
 	tags                   map[string]*string
+	isDualstack            bool
 }
 
 type pipInput struct {
@@ -107,7 +108,6 @@ func createAPILoadBalancer(ctx context.Context, pip, pipv6 *armnetwork.PublicIPA
 	probeName := "api-probe"
 	frontendIPv4Name := to.Ptr(fmt.Sprintf("%s-v4", in.frontendIPConfigName))
 	frontendIPv6Name := to.Ptr(fmt.Sprintf("%s-v6", in.frontendIPConfigName))
-	_ = frontendIPv6Name
 	loadBalancer := armnetwork.LoadBalancer{
 		Location: to.Ptr(in.region),
 		SKU: &armnetwork.LoadBalancerSKU{
@@ -166,6 +166,17 @@ func createAPILoadBalancer(ctx context.Context, pip, pipv6 *armnetwork.PublicIPA
 		},
 		Tags: in.tags,
 	}
+	if in.isDualstack {
+		loadBalancer.Properties.FrontendIPConfigurations = append(loadBalancer.Properties.FrontendIPConfigurations,
+			&armnetwork.FrontendIPConfiguration{
+				Name: frontendIPv6Name,
+				Properties: &armnetwork.FrontendIPConfigurationPropertiesFormat{
+					PrivateIPAllocationMethod: to.Ptr(armnetwork.IPAllocationMethodDynamic),
+					PrivateIPAddressVersion:   to.Ptr(armnetwork.IPVersionIPv6),
+					PublicIPAddress:           pipv6,
+				},
+			})
+	}
 	pollerResp, err := in.lbClient.BeginCreateOrUpdate(ctx,
 		in.resourceGroup,
 		in.loadBalancerName,
@@ -204,6 +215,16 @@ func updateOutboundLoadBalancerToAPILoadBalancer(ctx context.Context, pip, pipv6
 				PublicIPAddress:           pip,
 			},
 		})
+	if in.isDualstack {
+		extLB.Properties.FrontendIPConfigurations = append(extLB.Properties.FrontendIPConfigurations,
+			&armnetwork.FrontendIPConfiguration{
+				Name: to.Ptr(fmt.Sprintf("%s-v6", in.frontendIPConfigName)),
+				Properties: &armnetwork.FrontendIPConfigurationPropertiesFormat{
+					PrivateIPAllocationMethod: to.Ptr(armnetwork.IPAllocationMethodDynamic),
+					PublicIPAddress:           pipv6,
+				},
+			})
+	}
 	extLB.Properties.BackendAddressPools = append(extLB.Properties.BackendAddressPools,
 		&armnetwork.BackendAddressPool{
 			Name: &in.backendAddressPoolName,
@@ -323,13 +344,38 @@ func updateInternalLoadBalancer(ctx context.Context, in *lbInput) (*armnetwork.L
 
 	intLB.Properties.Probes = append(intLB.Properties.Probes, mcsProbe)
 	intLB.Properties.LoadBalancingRules = append(intLB.Properties.LoadBalancingRules, mcsRule)
+
+	// For dual-stack, create IPv6 frontend IP configuration on the internal LB.
+	// CAPZ doesn't create this from the manifest alone since it lacks the required
+	// PrivateIPAddressVersion property, so we create it here via the Azure SDK.
+	if in.isDualstack {
+		var subnetID string
+		if existingFrontEndIPConfig[0].Properties != nil && existingFrontEndIPConfig[0].Properties.Subnet != nil {
+			subnetID = *existingFrontEndIPConfig[0].Properties.Subnet.ID
+		}
+		frontendIPv6Name := fmt.Sprintf("%s-v6", existingFrontEndIPConfigName)
+		frontendIPv6 := &armnetwork.FrontendIPConfiguration{
+			Name: to.Ptr(frontendIPv6Name),
+			Properties: &armnetwork.FrontendIPConfigurationPropertiesFormat{
+				PrivateIPAllocationMethod: to.Ptr(armnetwork.IPAllocationMethodDynamic),
+				PrivateIPAddressVersion:   to.Ptr(armnetwork.IPVersionIPv6),
+			},
+		}
+		if subnetID != "" {
+			frontendIPv6.Properties.Subnet = &armnetwork.Subnet{
+				ID: to.Ptr(subnetID),
+			}
+		}
+		intLB.Properties.FrontendIPConfigurations = append(intLB.Properties.FrontendIPConfigurations, frontendIPv6)
+	}
+
 	pollerResp, err := in.lbClient.BeginCreateOrUpdate(ctx,
 		in.resourceGroup,
 		in.loadBalancerName,
 		intLB,
 		nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot update load balancer: %w", err)
+		return nil, fmt.Errorf("cannot update internal load balancer: %w", err)
 	}
 
 	resp, err := pollerResp.PollUntilDone(ctx, nil)

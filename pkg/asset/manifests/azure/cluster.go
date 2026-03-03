@@ -44,16 +44,29 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 		return nil, errors.Wrap(err, "failed to split cidrs into subnets")
 	}
 
-	securityRule := capz.SecurityRule{
-		Name:             "apiserver_in",
-		Protocol:         capz.SecurityGroupProtocolTCP,
-		Direction:        capz.SecurityRuleDirectionInbound,
-		Priority:         100,
-		SourcePorts:      ptr.To("*"),
-		DestinationPorts: ptr.To("6443"),
-		Source:           ptr.To("*"),
-		Destination:      ptr.To("*"),
-		Action:           capz.SecurityRuleActionAllow,
+	defaultSecurityRules := []capz.SecurityRule{
+		{
+			Name:             "apiserver_in",
+			Protocol:         capz.SecurityGroupProtocolTCP,
+			Direction:        capz.SecurityRuleDirectionInbound,
+			Priority:         100,
+			SourcePorts:      ptr.To("*"),
+			DestinationPorts: ptr.To("6443"),
+			Source:           ptr.To("*"),
+			Destination:      ptr.To("*"),
+			Action:           capz.SecurityRuleActionAllow,
+		},
+		{
+			Name:             "ssh_in",
+			Protocol:         capz.SecurityGroupProtocolTCP,
+			Direction:        capz.SecurityRuleDirectionInbound,
+			Priority:         220,
+			SourcePorts:      ptr.To("*"),
+			DestinationPorts: ptr.To("22"),
+			Source:           ptr.To("*"),
+			Destination:      ptr.To("*"),
+			Action:           capz.SecurityRuleActionAllow,
+		},
 	}
 
 	// If we are using Internal publishing, we need a security rule for each CIDR
@@ -61,26 +74,64 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 	var securityRulePriority int32 = 100
 	if addressFamilySubnets.IPv4Count() > 0 && installConfig.Config.Publish == types.InternalPublishingStrategy {
 		for i := 0; i < addressFamilySubnets.IPv4Count(); i++ {
-			ipv4SecurityRule := securityRule
-			ipv4SecurityRule.Name = fmt.Sprintf("apiserver_in_ipv4_%02d", i)
-			ipv4SecurityRule.Source = to.Ptr(addressFamilySubnets.GetIPv4Subnets()[i].String())
-			ipv4SecurityRule.Priority = securityRulePriority
-			securityRules = append(securityRules, ipv4SecurityRule)
+			securityRules = append(securityRules, capz.SecurityRule{
+				Name:             fmt.Sprintf("apiserver_in_ipv4_%02d", i),
+				Protocol:         capz.SecurityGroupProtocolTCP,
+				Direction:        capz.SecurityRuleDirectionInbound,
+				SourcePorts:      ptr.To("*"),
+				DestinationPorts: ptr.To("6443"),
+				Source:           to.Ptr(addressFamilySubnets.GetIPv4Subnets()[i].String()),
+				Destination:      ptr.To("*"),
+				Priority:         securityRulePriority,
+				Action:           capz.SecurityRuleActionAllow,
+			})
+			securityRulePriority += 10
+
+			securityRules = append(securityRules, capz.SecurityRule{
+				Name:             fmt.Sprintf("ssh_in_ipv4_%02d", i),
+				Protocol:         capz.SecurityGroupProtocolTCP,
+				Direction:        capz.SecurityRuleDirectionInbound,
+				SourcePorts:      ptr.To("*"),
+				DestinationPorts: ptr.To("22"),
+				Source:           to.Ptr(addressFamilySubnets.GetIPv4Subnets()[i].String()),
+				Destination:      ptr.To("*"),
+				Priority:         securityRulePriority,
+				Action:           capz.SecurityRuleActionAllow,
+			})
 			securityRulePriority += 10
 		}
 	}
 	if addressFamilySubnets.IPv6Count() > 0 && installConfig.Config.Publish == types.InternalPublishingStrategy {
 		for i := 0; i < addressFamilySubnets.IPv6Count(); i++ {
-			ipv6SecurityRule := securityRule
-			ipv6SecurityRule.Name = fmt.Sprintf("apiserver_in_ipv6_%02d", i)
-			ipv6SecurityRule.Source = to.Ptr(addressFamilySubnets.GetIPv6Subnets()[i].String())
-			ipv6SecurityRule.Priority = securityRulePriority
-			securityRules = append(securityRules, ipv6SecurityRule)
+			securityRules = append(securityRules, capz.SecurityRule{
+				Name:             fmt.Sprintf("apiserver_in_ipv6_%02d", i),
+				Protocol:         capz.SecurityGroupProtocolTCP,
+				Direction:        capz.SecurityRuleDirectionInbound,
+				SourcePorts:      ptr.To("*"),
+				DestinationPorts: ptr.To("6443"),
+				Source:           to.Ptr(addressFamilySubnets.GetIPv6Subnets()[i].String()),
+				Destination:      ptr.To("*"),
+				Priority:         securityRulePriority,
+				Action:           capz.SecurityRuleActionAllow,
+			})
+			securityRulePriority += 10
+
+			securityRules = append(securityRules, capz.SecurityRule{
+				Name:             fmt.Sprintf("ssh_in_ipv6_%02d", i),
+				Protocol:         capz.SecurityGroupProtocolTCP,
+				Direction:        capz.SecurityRuleDirectionInbound,
+				SourcePorts:      ptr.To("*"),
+				DestinationPorts: ptr.To("22"),
+				Source:           to.Ptr(addressFamilySubnets.GetIPv6Subnets()[i].String()),
+				Destination:      ptr.To("*"),
+				Priority:         securityRulePriority,
+				Action:           capz.SecurityRuleActionAllow,
+			})
 			securityRulePriority += 10
 		}
 	}
 	if len(securityRules) == 0 {
-		securityRules = append(securityRules, securityRule)
+		securityRules = append(securityRules, defaultSecurityRules...)
 	}
 	securityGroup.SecurityGroupClass.SecurityRules = securityRules
 
@@ -139,7 +190,6 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 	apiServerLB := capz.LoadBalancerSpec{
 		Name: fmt.Sprintf("%s-internal", clusterID.InfraID),
 		BackendPool: capz.BackendPool{
-			//Name: fmt.Sprintf("%s-internal", clusterID.InfraID),
 			Name: apiServerBackendPoolName,
 		},
 		LoadBalancerClassSpec: capz.LoadBalancerClassSpec{
@@ -165,7 +215,7 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 		}
 
 		nodeOutboundLB = &capz.LoadBalancerSpec{
-			Name:             clusterID.InfraID,
+			Name:             fmt.Sprintf("%s-ipv6-outbound-node-lb", clusterID.InfraID),
 			FrontendIPsCount: to.Ptr(int32(1)),
 			FrontendIPs: []capz.FrontendIP{{
 				FrontendIPClass: capz.FrontendIPClass{
