@@ -619,3 +619,31 @@ func associateNatGatewayToSubnet(ctx context.Context, in natGatewayInput) error 
 	}
 	return nil
 }
+
+func updateOutboundIPv6LoadBalancer(ctx context.Context, pipv6 *armnetwork.PublicIPAddress, lbClient *armnetwork.LoadBalancersClient, resourceGroup, loadBalancerName, infraID string) error {
+	outboundIPv6LB, err := lbClient.Get(ctx, resourceGroup, loadBalancerName, nil)
+	if err != nil {
+		return fmt.Errorf("failed to get external load balancer: %w", err)
+	}
+
+	loadBalancer := outboundIPv6LB.LoadBalancer
+	loadBalancer.Properties.FrontendIPConfigurations = append(loadBalancer.Properties.FrontendIPConfigurations, &armnetwork.FrontendIPConfiguration{
+		Name: to.Ptr(fmt.Sprintf("%s-frontend-ipv6", infraID)),
+		Properties: &armnetwork.FrontendIPConfigurationPropertiesFormat{
+			PrivateIPAllocationMethod: to.Ptr(armnetwork.IPAllocationMethodDynamic),
+			PublicIPAddress:           pipv6,
+		},
+	})
+
+	pollerResp, err := lbClient.BeginCreateOrUpdate(ctx,
+		resourceGroup,
+		loadBalancerName,
+		loadBalancer, nil)
+
+	if err != nil {
+		return fmt.Errorf("cannot update outbound node ipv6 load balancer: %w", err)
+	}
+
+	_, err = pollerResp.PollUntilDone(ctx, nil)
+	return err
+}

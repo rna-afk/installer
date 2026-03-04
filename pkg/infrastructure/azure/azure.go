@@ -462,7 +462,7 @@ func (p *Provider) InfraReady(ctx context.Context, in clusterapi.InfraReadyInput
 			if err != nil {
 				return fmt.Errorf("failed to create public ipv6: %w", err)
 			}
-			logrus.Debugf("created public ip v6: %s", *publicIPv6.ID)
+			logrus.Debugf("created public ipv6: %s", *publicIPv6.ID)
 		}
 
 		lbInput.loadBalancerName = in.InfraID
@@ -637,6 +637,28 @@ func (p *Provider) PostProvision(ctx context.Context, in clusterapi.PostProvisio
 			if err != nil {
 				return fmt.Errorf("failed to associate IPv6 SSH inbound nat rule to interface: %w", err)
 			}
+
+			publicIPv6outbound, err := createPublicIP(ctx, &pipInput{
+				name:          fmt.Sprintf("%s-pip-v6-outbound-lb", in.InfraID),
+				infraID:       in.InfraID,
+				region:        in.InstallConfig.Config.Azure.Region,
+				resourceGroup: p.ResourceGroupName,
+				pipClient:     p.NetworkClientFactory.NewPublicIPAddressesClient(),
+				tags:          p.Tags,
+				ipversion:     armnetwork.IPVersionIPv6,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to create public ipv6 for outbound ipv6 lb: %w", err)
+			}
+			logrus.Debugf("created public ipv6 for outbound ipv6 lb: %s", *publicIPv6outbound.ID)
+
+			// Update the outbound node IPv6 load balancer.
+			outboundLBName := fmt.Sprintf("%s-ipv6-outbound-node-lb", in.InfraID)
+			err = updateOutboundIPv6LoadBalancer(ctx, publicIPv6outbound, p.NetworkClientFactory.NewLoadBalancersClient(), p.ResourceGroupName, outboundLBName, in.InfraID)
+			if err != nil {
+				return fmt.Errorf("failed to set public ipv6 to outbound ipv6 lb: %w", err)
+			}
+			logrus.Debugf("updated outbound ipv6 lb %s with public ipv6: %s", outboundLBName, *publicIPv6outbound.ID)
 		}
 	}
 
