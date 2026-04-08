@@ -60,7 +60,20 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 		return nil, errors.Wrap(err, "failed to split CIDR into subnets")
 	}
 
+	var ipv6Subnets []*net.IPNet
+	var ipv6CIDR string
+	if installConfig.Config.Azure.IPFamily.DualStackEnabled() && len(installConfig.Config.MachineNetwork) > 1 {
+		ipv6CIDR = installConfig.Config.MachineNetwork[1].CIDR.String()
+		ipv6Subnets, err = cidr.SplitIntoSubnetsIPv6(ipv6CIDR, splitLength)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to split IPv6 CIDR into subnets")
+		}
+	}
+
 	virtualNetworkAddressPrefixes := []string{mainCIDR}
+	if ipv6CIDR != "" {
+		virtualNetworkAddressPrefixes = append(virtualNetworkAddressPrefixes, ipv6CIDR)
+	}
 	// CAPZ expects the capz-system to be created.
 	azureNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "capz-system"}}
 	azureNamespace.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Namespace"))
@@ -198,7 +211,7 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 		privateDNSZoneMode = capz.PrivateDNSZoneModeNone
 	}
 
-	subnetSpec, err := getSubnetSpec(installConfig, controlPlaneSubnet, computeSubnet, securityGroup, subnets, nodeSubnetID, clusterID.InfraID, zones)
+	subnetSpec, err := getSubnetSpec(installConfig, controlPlaneSubnet, computeSubnet, securityGroup, subnets, ipv6Subnets, nodeSubnetID, clusterID.InfraID, zones)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get subnets: %w", err)
 	}
@@ -326,16 +339,24 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 		},
 	}, nil
 }
-func getSubnetSpec(installConfig *installconfig.InstallConfig, controlPlaneSubnet, computeSubnet string, securityGroup capz.SecurityGroup, subnets []*net.IPNet, nodeSubnetID string, infraID string, zones []string) ([]capz.SubnetSpec, error) {
+func getSubnetSpec(installConfig *installconfig.InstallConfig, controlPlaneSubnet, computeSubnet string, securityGroup capz.SecurityGroup, subnets []*net.IPNet, ipv6Subnets []*net.IPNet, nodeSubnetID string, infraID string, zones []string) ([]capz.SubnetSpec, error) {
+	controlPlaneCIDRBlocks := []string{subnets[0].String()}
+	if len(ipv6Subnets) > 0 {
+		controlPlaneCIDRBlocks = append(controlPlaneCIDRBlocks, ipv6Subnets[0].String())
+	}
+
+	computeCIDRBlocks := []string{subnets[1].String()}
+	if len(ipv6Subnets) > 1 {
+		computeCIDRBlocks = append(computeCIDRBlocks, ipv6Subnets[1].String())
+	}
+
 	// Set default control plane subnets for default installs.
 	defaultControlPlaneSubnet := capz.Subnets{
 		{
 			SubnetClassSpec: capz.SubnetClassSpec{
-				Name: controlPlaneSubnet,
-				Role: capz.SubnetControlPlane,
-				CIDRBlocks: []string{
-					subnets[0].String(),
-				},
+				Name:       controlPlaneSubnet,
+				Role:       capz.SubnetControlPlane,
+				CIDRBlocks: controlPlaneCIDRBlocks,
 			},
 			SecurityGroup: securityGroup,
 		},
@@ -343,11 +364,9 @@ func getSubnetSpec(installConfig *installconfig.InstallConfig, controlPlaneSubne
 	defaultComputeSubnetSpec := capz.SubnetSpec{
 		ID: nodeSubnetID,
 		SubnetClassSpec: capz.SubnetClassSpec{
-			Name: computeSubnet,
-			Role: capz.SubnetNode,
-			CIDRBlocks: []string{
-				subnets[1].String(),
-			},
+			Name:       computeSubnet,
+			Role:       capz.SubnetNode,
+			CIDRBlocks: computeCIDRBlocks,
 		},
 		SecurityGroup: securityGroup,
 	}
