@@ -98,6 +98,34 @@ func Platform() (*azure.Platform, error) {
 	}, nil
 }
 
+// GetRegionOptions returns the Azure region IDs that can host resources.
+func GetRegionOptions(ctx context.Context, session *Session) ([]string, error) {
+	client := NewClient(session)
+
+	regions, err := getRegions(ctx, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get list of regions: %w", err)
+	}
+	resourceCapableRegions, err := getResourceCapableRegions(ctx, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get list of resources to check available regions: %w", err)
+	}
+
+	capable := make(map[string]bool, len(resourceCapableRegions))
+	for _, location := range resourceCapableRegions {
+		capable[location] = true
+	}
+
+	out := make([]string, 0, len(regions))
+	for id, location := range regions {
+		if capable[location] {
+			out = append(out, id)
+		}
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
 func getRegions(ctx context.Context, client API) (map[string]string, error) {
 	locations, err := client.ListLocations(ctx)
 	if err != nil {

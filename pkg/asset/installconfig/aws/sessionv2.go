@@ -93,6 +93,14 @@ func getDefaultConfigOptions() ConfigOptions {
 // and, if no creds are found, asks for them and stores them on disk in a config file.
 func GetConfig(ctx context.Context) (aws.Config, error) { return GetConfigWithOptions(ctx) }
 
+// GetConfigNoPrompt loads an AWS config without falling back to interactive
+// credential prompts. Callers are expected to handle missing credentials
+// themselves.
+func GetConfigNoPrompt(ctx context.Context, options ...func(*config.LoadOptions) error) (aws.Config, error) {
+	options = append(getDefaultConfigOptions(), options...)
+	return config.LoadDefaultConfig(ctx, options...)
+}
+
 // GetConfigWithOptions returns an AWS config by checking credentials
 // and, if no creds are found, asks for them and stores them on disk in a config file.
 func GetConfigWithOptions(ctx context.Context, options ...func(*config.LoadOptions) error) (aws.Config, error) {
