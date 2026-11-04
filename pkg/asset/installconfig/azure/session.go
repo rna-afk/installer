@@ -28,6 +28,9 @@ const azureAuthEnv = "AZURE_AUTH_LOCATION"
 var (
 	defaultAuthFilePath = filepath.Join(os.Getenv("HOME"), ".azure", "osServicePrincipal.json")
 	onceLoggers         = map[string]*sync.Once{}
+
+	// ErrNoCredentials is returned when no Azure credentials are available.
+	ErrNoCredentials = errors.New("no Azure credentials found")
 )
 
 // AuthenticationType identifies the authentication method used.
@@ -157,42 +160,32 @@ func GetCloudConfiguration(cloudName azure.CloudEnvironment, armEndpoint string)
 	return &cloudConfig, nil
 }
 
-// credentialsFromFileOrUser returns credentials found
-// in ~/.azure/osServicePrincipal.json and, if no creds are found,
-// asks for them and stores them on disk in a config file
-func credentialsFromFileOrUser() (*Credentials, error) {
+// azureAuthFilePath returns the path to the Azure service principal file.
+func azureAuthFilePath() string {
 	authFilePath := defaultAuthFilePath
 	if f := os.Getenv(azureAuthEnv); len(f) > 0 {
 		authFilePath = f
 	}
+	return authFilePath
+}
 
-	var authFile Credentials
+// LoadCredentialsFromFile loads Azure credentials from AZURE_AUTH_LOCATION or
+// the default ~/.azure/osServicePrincipal.json. It does not prompt the user.
+func LoadCredentialsFromFile() (*Credentials, error) {
+	authFilePath := azureAuthFilePath()
 
 	contents, err := os.ReadFile(authFilePath)
 	if err != nil {
-		// If the file with creds was not found, ask user for auth info
 		if errors.Is(err, fs.ErrNotExist) {
-			logrus.Infof("Asking user to provide authentication info")
-			credentials, cerr := askForCredentials()
-			if cerr != nil {
-				return nil, fmt.Errorf("failed to retrieve credentials from user: %w", cerr)
-			}
-			logrus.Infof("Saving user credentials to %q", authFilePath)
-			if cerr = saveCredentials(*credentials, authFilePath); cerr != nil {
-				return nil, fmt.Errorf("failed to save credentials: %w", cerr)
-			}
-			authFile = *credentials
-		} else {
-			// File was found but we failed to read it, just error out and let the user handle it
-			return nil, err
+			return nil, ErrNoCredentials
 		}
-	} else {
-		err = json.Unmarshal(contents, &authFile)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 
+	var authFile Credentials
+	if err := json.Unmarshal(contents, &authFile); err != nil {
+		return nil, err
+	}
 	if err := checkCredentials(authFile); err != nil {
 		return nil, err
 	}
@@ -205,6 +198,32 @@ func credentialsFromFileOrUser() (*Credentials, error) {
 	})
 
 	return &authFile, nil
+}
+
+// credentialsFromFileOrUser returns credentials found in
+// ~/.azure/osServicePrincipal.json and, if no creds are found, asks for them
+// and stores them on disk in a config file.
+func credentialsFromFileOrUser() (*Credentials, error) {
+	authFilePath := azureAuthFilePath()
+
+	authFile, err := LoadCredentialsFromFile()
+	if err == nil {
+		return authFile, nil
+	}
+	if !errors.Is(err, ErrNoCredentials) {
+		return nil, err
+	}
+
+	logrus.Infof("Asking user to provide authentication info")
+	credentials, cerr := askForCredentials()
+	if cerr != nil {
+		return nil, fmt.Errorf("failed to retrieve credentials from user: %w", cerr)
+	}
+	logrus.Infof("Saving user credentials to %q", authFilePath)
+	if cerr = saveCredentials(*credentials, authFilePath); cerr != nil {
+		return nil, fmt.Errorf("failed to save credentials: %w", cerr)
+	}
+	return credentials, nil
 }
 
 func checkCredentials(creds Credentials) error {
@@ -278,6 +297,11 @@ func askForCredentials() (*Credentials, error) {
 		ClientSecret:   clientSecret,
 		TenantID:       tenantID,
 	}, nil
+}
+
+// SaveCredentials writes the credentials to the configured Azure auth file.
+func SaveCredentials(credentials Credentials) error {
+	return saveCredentials(credentials, azureAuthFilePath())
 }
 
 func saveCredentials(credentials Credentials, filePath string) error {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	survey "github.com/AlecAivazis/survey/v2"
@@ -61,21 +62,48 @@ func (config DNSConfig) GetPrivateDNSZoneID(rgName string, zoneName string) stri
 		zoneName)
 }
 
-// GetDNSZone returns a DNS zone selected by survey
-func (config DNSConfig) GetDNSZone() (*Zone, error) {
-	//call azure api using the session to retrieve available base domain
+// GetBaseDomainOptions returns the public DNS zones in the subscription,
+// sorted by name.
+func (config DNSConfig) GetBaseDomainOptions() ([]Zone, error) {
 	zonesClient := newZonesClient(config.session)
-	allZones, _ := zonesClient.GetAllPublicZones()
+	allZones, err := zonesClient.GetAllPublicZones()
+	if err != nil {
+		return nil, err
+	}
 	if len(allZones) == 0 {
 		return nil, errors.New("no public dns zone found in your subscription")
 	}
-	zoneNames := []string{}
+
+	zoneNames := make([]string, 0, len(allZones))
 	for zoneName := range allZones {
 		zoneNames = append(zoneNames, zoneName)
 	}
+	sort.Strings(zoneNames)
+
+	zones := make([]Zone, 0, len(zoneNames))
+	for _, zoneName := range zoneNames {
+		zones = append(zones, Zone{
+			ID:   allZones[zoneName],
+			Name: zoneName,
+		})
+	}
+	return zones, nil
+}
+
+// GetDNSZone returns a DNS zone selected by survey
+func (config DNSConfig) GetDNSZone() (*Zone, error) {
+	zones, err := config.GetBaseDomainOptions()
+	if err != nil {
+		return nil, err
+	}
+
+	zoneNames := make([]string, 0, len(zones))
+	for _, zone := range zones {
+		zoneNames = append(zoneNames, zone.Name)
+	}
 
 	var zoneName string
-	err := survey.Ask([]*survey.Question{
+	err = survey.Ask([]*survey.Question{
 		{
 			Prompt: &survey.Select{
 				Message: "Base Domain",
@@ -88,11 +116,12 @@ func (config DNSConfig) GetDNSZone() (*Zone, error) {
 		return nil, fmt.Errorf("failed UserInput: %w", err)
 	}
 
-	return &Zone{
-		ID:   allZones[zoneName],
-		Name: zoneName,
-	}, nil
-
+	for _, zone := range zones {
+		if zone.Name == zoneName {
+			return &zone, nil
+		}
+	}
+	return nil, fmt.Errorf("selected Azure DNS zone %q was not found", zoneName)
 }
 
 // GetDNSRecordSet gets a record set for the zone identified by publicZoneID

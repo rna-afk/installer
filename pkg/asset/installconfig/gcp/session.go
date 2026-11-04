@@ -223,7 +223,7 @@ func (c *cliLoader) Load(ctx context.Context) (*googleoauth.Credentials, error) 
 }
 
 func (c *cliLoader) String() string {
-	return "gcloud CLI defaults"
+	return "gcloud defaults"
 }
 
 func (c *cliLoader) Content() string {
